@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   FiUsers, 
   FiFileText, 
@@ -10,13 +10,71 @@ import {
 import DashboardCard from "../../Components/Home/DashboardCard";
 import QuickAction from "../../Components/Home/QuickActions";
 import SystemStatusItem from "../../Components/Home/StatusSystem";
+import { verificarStatusBackend } from "../../Services/frappeClient";
 
 export default function Home() {
-  const [systemStatus] = useState({
-    backend: "online",
-    lastSync: "Há 2 minutos",
+  const [systemStatus, setSystemStatus] = useState({
+    backend: "verificando...",
+    lastSync: "Verificando...",
     version: "1.0.0",
   });
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+
+  useEffect(() => {
+    async function checkBackendStatus() {
+      const isOnline = await verificarStatusBackend();
+      const now = new Date();
+      
+      if (isOnline) {
+        setLastSyncTime(now);
+      }
+      
+      setSystemStatus({
+        backend: isOnline ? "online" : "offline",
+        lastSync: isOnline ? formatLastSync(now) : "Indisponível",
+        version: "1.0.0",
+      });
+    }
+
+    // Verifica imediatamente
+    checkBackendStatus();
+
+    // Verifica a cada 30 segundos
+    const interval = setInterval(checkBackendStatus, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Atualiza o tempo de sincronização a cada segundo
+  useEffect(() => {
+    if (!lastSyncTime) return;
+
+    const updateInterval = setInterval(() => {
+      setSystemStatus(prev => ({
+        ...prev,
+        lastSync: formatLastSync(lastSyncTime),
+      }));
+    }, 1000);
+
+    return () => clearInterval(updateInterval);
+  }, [lastSyncTime]);
+
+  function formatLastSync(date: Date): string {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) {
+      return `Há ${diffInSeconds} segundo${diffInSeconds !== 1 ? 's' : ''}`;
+    }
+
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) {
+      return `Há ${diffInMinutes} minuto${diffInMinutes !== 1 ? 's' : ''}`;
+    }
+
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    return `Há ${diffInHours} hora${diffInHours !== 1 ? 's' : ''}`;
+  }
 
   return (
     <div className="w-full h-full p-6 flex flex-col gap-6 bg-[var(--page-bg)]">

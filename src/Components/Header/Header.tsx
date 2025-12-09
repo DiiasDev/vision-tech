@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   FileText
 } from "lucide-react";
+import { verificarStatusBackend } from "../../Services/frappeClient";
 
 export default function Header() {
   const [darkMode, setDarkMode] = useState(() => {
@@ -17,6 +18,8 @@ export default function Header() {
     const savedTheme = localStorage.getItem("theme");
     return savedTheme === "dark";
   });
+
+  const [backendStatus, setBackendStatus] = useState<"online" | "offline" | "verificando">("verificando");
 
   // Aplicar tema ao carregar a página
   useEffect(() => {
@@ -26,6 +29,19 @@ export default function Header() {
       document.documentElement.classList.remove("dark");
     }
   }, [darkMode]);
+
+  // Verificar status do backend
+  useEffect(() => {
+    async function checkStatus() {
+      const isOnline = await verificarStatusBackend();
+      setBackendStatus(isOnline ? "online" : "offline");
+    }
+
+    checkStatus();
+    const interval = setInterval(checkStatus, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Função de trocar tema
   const toggleTheme = () => {
@@ -106,8 +122,17 @@ export default function Header() {
 
         {/* STATUS DO SISTEMA */}
         <div className="hidden md:flex items-center gap-2">
-          <Circle size={10} className="text-green-400" />
-          <span className="text-sm opacity-80">Online</span>
+          <Circle 
+            size={10} 
+            className={
+              backendStatus === "online" 
+                ? "text-green-400" 
+                : backendStatus === "offline"
+                ? "text-red-400"
+                : "text-yellow-400"
+            } 
+          />
+          <span className="text-sm opacity-80 capitalize">{backendStatus}</span>
         </div>
 
         {/* BOTÃO DE TEMA */}

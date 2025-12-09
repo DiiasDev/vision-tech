@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import axios from "axios";
 
 type Field = {
   fieldname: string;
@@ -35,20 +34,20 @@ const FormComponent: React.FC<FormComponentProps> = ({
     setFormData((prev) => ({ ...prev, [fieldname]: value }));
   };
 
-  // Enviar para Frappe
+  // Enviar formulário
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    try {
-      const response = await axios.post(`/api/resource/${doctype}`, formData);
-
-      if (onSubmit) onSubmit(response.data);
-      alert("Registro criado com sucesso!");
-    } catch (error: any) {
-      alert("Erro ao salvar: " + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
+    
+    if (onSubmit) {
+      setLoading(true);
+      try {
+        await onSubmit(formData);
+        setFormData({}); // Limpar formulário após sucesso
+      } catch (error) {
+        // Erro será tratado pelo componente pai
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -79,8 +78,19 @@ const FormComponent: React.FC<FormComponentProps> = ({
           <input
             type="checkbox"
             checked={!!value}
-            onChange={(e) => handleChange(field.fieldname, e.target.checked)}
+            onChange={(e) => handleChange(field.fieldname, e.target.checked ? 1 : 0)}
             className="h-4 w-4"
+          />
+        );
+
+      case "Small Text":
+        return (
+          <textarea
+            value={value}
+            required={field.required}
+            onChange={(e) => handleChange(field.fieldname, e.target.value)}
+            className="w-full border rounded p-2 bg-neutralDark/10 dark:bg-neutralLight/5"
+            rows={3}
           />
         );
 

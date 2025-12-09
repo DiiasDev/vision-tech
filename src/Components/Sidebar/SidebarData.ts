@@ -56,7 +56,7 @@ export const sidebarSections: SidebarSection[] = [
         key: "clientes",
         children: [
           { label: "Cadastro", path: "/Clientes/Novo" },
-          { label: "Lista", path: "/clientes" },
+          { label: "Lista", path: "/Clientes/Lista" },
         ],
       },
       {
