@@ -8,6 +8,7 @@ import {
   FileText,
   ShoppingCart,
   BarChart,
+  Plug,
   type LucideIcon,
 } from "lucide-react";
 
@@ -132,6 +133,23 @@ export const sidebarSections: SidebarSection[] = [
           { label: "Empresa", path: "/dashboard/empresa" },
           { label: "Serviços", path: "/dashboard/servicos" },
           { label: "Acessórios", path: "/dashboard/acessorios" },
+          { label: "Financeiro", path: "/dashboard/financeiro" },
+        ],
+      },
+    ],
+  },
+
+  {
+    title: "Integrações",
+    items: [
+      {
+        label: "Integrações",
+        icon: Plug,
+        key: "integracoes",
+        children: [
+          { label: "Configurações", path: "/integracoes/configuracoes" },
+          { label: "API Keys", path: "/integracoes/api-keys" },
+          { label: "Webhooks", path: "/integracoes/webhooks" },
         ],
       },
     ],

@@ -121,13 +121,14 @@ export function Sidebar() {
                     key={item.key}
                     to={item.path}
                     className={`
-                      flex items-center px-5 py-3 rounded-lg mx-2 mb-1
+                      flex items-center py-3 rounded-lg mb-1 mx-2
                       cursor-pointer transition-all
                       ${
                         isActive
                           ? "bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]"
                           : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)]"
                       }
+                      ${isOpen ? "px-5" : "px-0 justify-center"}
                     `}
                   >
                     <Icon
@@ -150,17 +151,18 @@ export function Sidebar() {
                 item.children.some((c) => c.path === location.pathname);
 
               return (
-                <div key={item.key} className="mb-1">
+                <div key={item.key} className="mb-1 mx-2">
                   <button
                     onClick={() => handleParentClick(item.key)}
                     className={`
-                      flex items-center w-full px-5 py-3 rounded-lg mx-2
+                      flex items-center w-full py-3 rounded-lg
                       cursor-pointer transition-all
                       ${
                         isParentActive
                           ? "bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]"
                           : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)]"
                       }
+                      ${isOpen ? "px-5" : "px-0 justify-center"}
                     `}
                   >
                     <Icon size={21} className="text-[var(--sidebar-icon)]" />

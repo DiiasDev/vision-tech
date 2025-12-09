@@ -1,3 +1,4 @@
+import { Routes, Route, Navigate } from "react-router-dom";
 import Header from "./Components/Header/Header";
 import { Layout } from "./Components/Sidebar/Layout";
 import { SidebarProvider } from "./contexts/SidebarContext";
@@ -8,7 +9,11 @@ function App() {
     <SidebarProvider>
       <Layout>
         <Header />
-        <Home/>
+        <Routes>
+          <Route path="/" element={<Navigate to="/Home" replace />} />
+          <Route path="/Home" element={<Home />} />
+          {/* Adicione outras rotas aqui conforme necessário */}
+        </Routes>
       </Layout>
     </SidebarProvider>
   );
