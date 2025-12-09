@@ -1,0 +1,37 @@
+:root {
+  /* Light Mode */
+  --sidebar-bg: #ffffff;
+  --sidebar-text: #1f2937;
+  --sidebar-text-secondary: #6b7280;
+  --sidebar-icon: #374151;
+  --sidebar-hover: rgba(0, 0, 0, 0.05);
+  --sidebar-active-bg: #e8f0fe;
+  --sidebar-active-text: #1d4ed8;
+  --sidebar-divider: #e5e7eb;
+
+  /* Page backgrounds */
+  --page-bg: #f9fafb;
+  --page-bg-secondary: #ffffff;
+
+  --brand-blue: #1d4ed8;
+  --brand-blue-light: #60a5fa;
+}
+
+/* Dark mode */
+.dark {
+  --sidebar-bg: #1e2530;
+  --sidebar-text: #d1d5db;
+  --sidebar-text-secondary: #9ca3af;
+  --sidebar-icon: #9ca3af;
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-active-bg: #223043;
+  --sidebar-active-text: #60a5fa;
+  --sidebar-divider: #2d3542;
+
+  /* Page backgrounds */
+  --page-bg: #0f1419;
+  --page-bg-secondary: #1e2530;
+
+  --brand-blue: #3b82f6;
+  --brand-blue-light: #93c5fd;
+}
