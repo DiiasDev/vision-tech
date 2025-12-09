@@ -3,6 +3,7 @@ import Header from "./Components/Header/Header";
 import { Layout } from "./Components/Sidebar/Layout";
 import { SidebarProvider } from "./contexts/SidebarContext";
 import Home from "./Pages/HomePage/HomePage";
+import NovoCliente from "./Pages/ClientsPage/ClientPage"
 
 function App() {
   return (
@@ -12,7 +13,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/Home" replace />} />
           <Route path="/Home" element={<Home />} />
-          {/* Adicione outras rotas aqui conforme necessário */}
+          <Route path="/Clientes/Novo" element={<NovoCliente />} />
         </Routes>
       </Layout>
     </SidebarProvider>
