@@ -1,5 +1,6 @@
 export interface ClienteTypes {
   // Informações Básicas
+  name?: string; // ID do documento no Frappe
   nome: string;
   tipo_cliente: "PF" | "PJ";
   cpf?: string;

@@ -1,4 +1,8 @@
+import { useState, useEffect } from "react";
 import { type ClienteTypes } from "../../types/Clientes.types";
+import {formatCPF, formatCEP, formatCNPJ, formatPhone} from "../../Utils/Formatter"
+import { TextField, Select, MenuItem, FormControl, Checkbox, FormControlLabel } from "@mui/material";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
 
 const getStatusLabel = (ativo?: number) => {
   if (ativo === 1) return "Ativo";
@@ -12,92 +16,165 @@ const getStatusColor = (ativo?: number) => {
   return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
 };
 
-const formatCPF = (cpf?: string) => {
-  if (!cpf) return null;
-  return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-};
-
-const formatCNPJ = (cnpj?: string) => {
-  if (!cnpj) return null;
-  return cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
-};
-
-const formatPhone = (phone?: string) => {
-  if (!phone) return null;
-  if (phone.length === 11) {
-    return phone.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-  }
-  return phone.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
-};
-
-const formatCEP = (cep?: string) => {
-  if (!cep) return null;
-  return cep.replace(/(\d{5})(\d{3})/, "$1-$2");
-};
-
 export default function ClienteModal({
   open,
   onClose,
   cliente,
+  isEditMode = false,
+  onSave,
 }: {
   open: boolean;
   onClose: () => void;
   cliente: ClienteTypes | null;
+  isEditMode?: boolean;
+  onSave?: (data: ClienteTypes) => Promise<void>;
 }) {
-  if (!open || !cliente) return null;
+  const [editMode, setEditMode] = useState(isEditMode);
+  const [formData, setFormData] = useState<ClienteTypes | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(
+    document.documentElement.classList.contains("dark")
+  );
 
-  const endereco = [
-    cliente.logradouro,
-    cliente.numero,
-    cliente.bairro,
-    cliente.cidade,
-    cliente.estado
-  ].filter(Boolean).join(", ");
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains("dark"));
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (cliente) {
+      setFormData({ ...cliente });
+    }
+    setEditMode(isEditMode);
+  }, [cliente, isEditMode]);
+
+  if (!open || !cliente || !formData) return null;
+
+  const muiTheme = createTheme({
+    palette: {
+      mode: isDarkMode ? "dark" : "light",
+      primary: {
+        main: "#3b82f6",
+        light: "#60a5fa",
+        dark: "#1d4ed8",
+      },
+      background: {
+        paper: isDarkMode ? "#1e2530" : "#ffffff",
+        default: isDarkMode ? "#0f1419" : "#f9fafb",
+      },
+      text: {
+        primary: isDarkMode ? "#f9fafb" : "#1f2937",
+        secondary: isDarkMode ? "#d1d5db" : "#6b7280",
+      },
+    },
+    components: {
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            backgroundColor: isDarkMode ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.02)",
+            color: isDarkMode ? "#f9fafb" : "#1f2937",
+          },
+          notchedOutline: {
+            borderColor: isDarkMode ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.23)",
+          },
+        },
+      },
+      MuiInputLabel: {
+        styleOverrides: {
+          root: {
+            color: isDarkMode ? "#d1d5db" : "#6b7280",
+          },
+        },
+      },
+    },
+  });
+
+  const handleChange = (field: string, value: any) => {
+    setFormData((prev) => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const handleSave = async () => {
+    if (!onSave || !formData) return;
+    
+    setLoading(true);
+    try {
+      await onSave(formData);
+      setEditMode(false);
+      onClose();
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+      alert("Erro ao salvar cliente");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const enderecoCompleto = [
-    cliente.logradouro && cliente.numero ? `${cliente.logradouro}, ${cliente.numero}` : cliente.logradouro,
-    cliente.complemento,
-    cliente.bairro,
-    cliente.cidade && cliente.estado ? `${cliente.cidade} - ${cliente.estado}` : cliente.cidade || cliente.estado,
-    formatCEP(cliente.cep)
+    formData.logradouro && formData.numero ? `${formData.logradouro}, ${formData.numero}` : formData.logradouro,
+    formData.complemento,
+    formData.bairro,
+    formData.cidade && formData.estado ? `${formData.cidade} - ${formData.estado}` : formData.cidade || formData.estado,
+    formatCEP(formData.cep)
   ].filter(Boolean).join(", ");
 
   return (
-    <div 
-      className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn"
-      onClick={onClose}
-    >
+    <ThemeProvider theme={muiTheme}>
       <div 
-        className="bg-white dark:bg-[#0f1419] border border-gray-200 dark:border-gray-800 shadow-2xl rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-slideUp"
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn"
+        onClick={onClose}
       >
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 p-6">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-white mb-3">
-                {cliente.nome}
-              </h2>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm ${getStatusColor(cliente.ativo)}`}>
-                  {getStatusLabel(cliente.ativo)}
-                </span>
-                <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/20 text-white backdrop-blur-sm">
-                  {cliente.tipo_cliente === "PF" ? "Pessoa Física" : "Pessoa Jurídica"}
-                </span>
+        <div 
+          className="bg-white dark:bg-[#0f1419] border border-gray-200 dark:border-gray-800 shadow-2xl rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-slideUp"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-white mb-3">
+                  {editMode ? "Editar Cliente" : formData.nome}
+                </h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm ${getStatusColor(formData.ativo)}`}>
+                    {getStatusLabel(formData.ativo)}
+                  </span>
+                  <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/20 text-white backdrop-blur-sm">
+                    {formData.tipo_cliente === "PF" ? "Pessoa Física" : "Pessoa Jurídica"}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 ml-4">
+                {!editMode && onSave && (
+                  <button
+                    onClick={() => setEditMode(true)}
+                    className="text-white/80 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-all"
+                    aria-label="Editar"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                )}
+                <button
+                  onClick={onClose}
+                  className="text-white/80 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-all"
+                  aria-label="Fechar"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="text-white/80 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-all ml-4"
-              aria-label="Fechar"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
           </div>
-        </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50 dark:bg-[#0a0e13]">
@@ -112,18 +189,68 @@ export default function ClienteModal({
               </h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-              <InfoItem 
-                label="Tipo de Cliente" 
-                value={cliente.tipo_cliente === "PF" ? "Pessoa Física" : "Pessoa Jurídica"} 
-              />
-              <InfoItem 
-                label={cliente.tipo_cliente === "PF" ? "CPF" : "CNPJ"} 
-                value={cliente.tipo_cliente === "PF" ? formatCPF(cliente.cpf) : formatCNPJ(cliente.cnpj)} 
-              />
-              <InfoItem 
-                label="Cliente desde" 
-                value={cliente.creation ? new Date(cliente.creation).toLocaleDateString('pt-BR') : null}
-              />
+              {editMode ? (
+                <>
+                  <EditField label="Nome" value={formData.nome} onChange={(v) => handleChange("nome", v)} required />
+                  <EditField 
+                    label="Tipo de Cliente" 
+                    value={formData.tipo_cliente} 
+                    onChange={(v) => handleChange("tipo_cliente", v)}
+                    type="select"
+                    options={["PF", "PJ"]}
+                    required
+                  />
+                  {formData.tipo_cliente === "PF" ? (
+                    <EditField label="CPF" value={formData.cpf} onChange={(v) => handleChange("cpf", v)} />
+                  ) : (
+                    <EditField label="CNPJ" value={formData.cnpj} onChange={(v) => handleChange("cnpj", v)} />
+                  )}
+                  <div>
+                    <dt className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                      Status
+                    </dt>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.ativo === 1}
+                          onChange={(e) => handleChange("ativo", e.target.checked ? 1 : 0)}
+                          sx={{
+                            color: isDarkMode ? "#9ca3af" : "#6b7280",
+                            "&.Mui-checked": {
+                              color: isDarkMode ? "#60a5fa" : "#1d4ed8",
+                            },
+                          }}
+                        />
+                      }
+                      label="Ativo"
+                      sx={{ color: isDarkMode ? "#f9fafb" : "#1f2937" }}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <EditField 
+                      label="Observações" 
+                      value={formData.observacoes} 
+                      onChange={(v) => handleChange("observacoes", v)}
+                      type="textarea"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <InfoItem 
+                    label="Tipo de Cliente" 
+                    value={formData.tipo_cliente === "PF" ? "Pessoa Física" : "Pessoa Jurídica"} 
+                  />
+                  <InfoItem 
+                    label={formData.tipo_cliente === "PF" ? "CPF" : "CNPJ"} 
+                    value={formData.tipo_cliente === "PF" ? formatCPF(formData.cpf) : formatCNPJ(formData.cnpj)} 
+                  />
+                  <InfoItem 
+                    label="Cliente desde" 
+                    value={formData.creation ? new Date(formData.creation).toLocaleDateString('pt-BR') : null}
+                  />
+                </>
+              )}
             </div>
           </section>
 
@@ -138,16 +265,26 @@ export default function ClienteModal({
               </h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-              <InfoItem label="Email" value={cliente.email} icon="email" />
-              <InfoItem label="Telefone" value={formatPhone(cliente.telefone)} icon="phone" />
-              {cliente.whatsapp && (
-                <InfoItem label="WhatsApp" value={formatPhone(cliente.whatsapp)} icon="whatsapp" />
+              {editMode ? (
+                <>
+                  <EditField label="Email" value={formData.email} onChange={(v) => handleChange("email", v)} type="email" required />
+                  <EditField label="Telefone" value={formData.telefone} onChange={(v) => handleChange("telefone", v)} required />
+                  <EditField label="WhatsApp" value={formData.whatsapp} onChange={(v) => handleChange("whatsapp", v)} />
+                </>
+              ) : (
+                <>
+                  <InfoItem label="Email" value={formData.email} icon="email" />
+                  <InfoItem label="Telefone" value={formatPhone(formData.telefone)} icon="phone" />
+                  {formData.whatsapp && (
+                    <InfoItem label="WhatsApp" value={formatPhone(formData.whatsapp)} icon="whatsapp" />
+                  )}
+                </>
               )}
             </div>
           </section>
 
           {/* Endereço */}
-          {enderecoCompleto && (
+          {(enderecoCompleto || editMode) && (
             <section className="bg-white dark:bg-[#1e2530] rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
               <div className="flex items-center gap-2 mb-4">
                 <svg className="w-5 h-5 text-purple-600 dark:text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,23 +296,49 @@ export default function ClienteModal({
                 </h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                <InfoItem label="CEP" value={formatCEP(cliente.cep)} />
-                <InfoItem label="Tipo" value={cliente.tipo_endereco} />
-                <InfoItem label="Logradouro" value={cliente.logradouro} colSpan />
-                <InfoItem label="Número" value={cliente.numero} />
-                <InfoItem label="Complemento" value={cliente.complemento} />
-                <InfoItem label="Bairro" value={cliente.bairro} />
-                <InfoItem label="Cidade" value={cliente.cidade} />
-                <InfoItem label="Estado" value={cliente.estado} />
-                {cliente.referencia && (
-                  <InfoItem label="Referência" value={cliente.referencia} colSpan />
+                {editMode ? (
+                  <>
+                    <EditField label="CEP" value={formData.cep} onChange={(v) => handleChange("cep", v)} />
+                    <EditField 
+                      label="Tipo de Endereço" 
+                      value={formData.tipo_endereco} 
+                      onChange={(v) => handleChange("tipo_endereco", v)}
+                      type="select"
+                      options={["Principal", "Cobrança", "Entrega"]}
+                    />
+                    <div className="md:col-span-2">
+                      <EditField label="Logradouro" value={formData.logradouro} onChange={(v) => handleChange("logradouro", v)} />
+                    </div>
+                    <EditField label="Número" value={formData.numero} onChange={(v) => handleChange("numero", v)} />
+                    <EditField label="Complemento" value={formData.complemento} onChange={(v) => handleChange("complemento", v)} />
+                    <EditField label="Bairro" value={formData.bairro} onChange={(v) => handleChange("bairro", v)} />
+                    <EditField label="Cidade" value={formData.cidade} onChange={(v) => handleChange("cidade", v)} />
+                    <EditField label="Estado" value={formData.estado} onChange={(v) => handleChange("estado", v)} />
+                    <div className="md:col-span-2">
+                      <EditField label="Referência" value={formData.referencia} onChange={(v) => handleChange("referencia", v)} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <InfoItem label="CEP" value={formatCEP(formData.cep)} />
+                    <InfoItem label="Tipo" value={formData.tipo_endereco} />
+                    <InfoItem label="Logradouro" value={formData.logradouro} colSpan />
+                    <InfoItem label="Número" value={formData.numero} />
+                    <InfoItem label="Complemento" value={formData.complemento} />
+                    <InfoItem label="Bairro" value={formData.bairro} />
+                    <InfoItem label="Cidade" value={formData.cidade} />
+                    <InfoItem label="Estado" value={formData.estado} />
+                    {formData.referencia && (
+                      <InfoItem label="Referência" value={formData.referencia} colSpan />
+                    )}
+                  </>
                 )}
               </div>
             </section>
           )}
 
           {/* Observações */}
-          {cliente.observacoes && (
+          {formData.observacoes && !editMode && (
             <section className="bg-white dark:bg-[#1e2530] rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
               <div className="flex items-center gap-2 mb-4">
                 <svg className="w-5 h-5 text-orange-600 dark:text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -187,7 +350,7 @@ export default function ClienteModal({
               </div>
               <div className="bg-gray-50 dark:bg-[#0f1419] rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                 <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
-                  {cliente.observacoes}
+                  {formData.observacoes}
                 </p>
               </div>
             </section>
@@ -196,14 +359,125 @@ export default function ClienteModal({
 
         {/* Footer */}
         <div className="bg-white dark:bg-[#1e2530] border-t border-gray-200 dark:border-gray-800 p-5">
-          <button
-            onClick={onClose}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800 text-white font-semibold rounded-xl py-3.5 transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
-          >
-            Fechar
-          </button>
+          {editMode ? (
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setFormData({ ...cliente });
+                  setEditMode(false);
+                }}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-xl py-3.5 transition-all"
+                disabled={loading}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={loading}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800 text-white font-semibold rounded-xl py-3.5 transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {loading ? "Salvando..." : "Salvar Alterações"}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onClose}
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800 text-white font-semibold rounded-xl py-3.5 transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+            >
+              Fechar
+            </button>
+          )}
         </div>
       </div>
+    </div>
+    </ThemeProvider>
+  );
+}
+
+function EditField({ 
+  label, 
+  value, 
+  onChange,
+  type = "text",
+  options = [],
+  required = false
+}: { 
+  label: string; 
+  value?: string | null;
+  onChange: (value: string) => void;
+  type?: "text" | "email" | "select" | "textarea";
+  options?: string[];
+  required?: boolean;
+}) {
+  const isDarkMode = document.documentElement.classList.contains("dark");
+  
+  return (
+    <div>
+      <dt className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+        {label}
+        {required && <span className="text-red-500 dark:text-red-400"> *</span>}
+      </dt>
+      {type === "select" ? (
+        <FormControl fullWidth size="small">
+          <Select
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+            displayEmpty
+            required={required}
+            sx={{
+              backgroundColor: isDarkMode ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.02)",
+              color: isDarkMode ? "#f9fafb" : "#1f2937",
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: isDarkMode ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.23)",
+              },
+            }}
+          >
+            <MenuItem value="" disabled>
+              <span style={{ color: isDarkMode ? "#9ca3af" : "#6b7280", fontStyle: "italic" }}>
+                Selecione...
+              </span>
+            </MenuItem>
+            {options.map((opt) => (
+              <MenuItem key={opt} value={opt}>
+                {opt}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      ) : type === "textarea" ? (
+        <TextField
+          fullWidth
+          multiline
+          rows={3}
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+          required={required}
+          variant="outlined"
+          size="small"
+          sx={{
+            "& .MuiOutlinedInput-root": {
+              backgroundColor: isDarkMode ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.02)",
+              color: isDarkMode ? "#f9fafb" : "#1f2937",
+            },
+          }}
+        />
+      ) : (
+        <TextField
+          fullWidth
+          type={type}
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+          required={required}
+          variant="outlined"
+          size="small"
+          sx={{
+            "& .MuiOutlinedInput-root": {
+              backgroundColor: isDarkMode ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.02)",
+              color: isDarkMode ? "#f9fafb" : "#1f2937",
+            },
+          }}
+        />
+      )}
     </div>
   );
 }

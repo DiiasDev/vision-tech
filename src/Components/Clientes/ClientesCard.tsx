@@ -1,6 +1,10 @@
 import { type ClienteTypes } from "../../types/Clientes.types";
 import PhoneIcon from "@mui/icons-material/Phone";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { IconButton } from "@mui/material";
+import {formatPhone} from "../../Utils/Formatter"
 
 const getStatusLabel = (ativo?: number) => {
   if (ativo === 1) return "Ativo";
@@ -14,33 +18,33 @@ const getStatusStyle = (ativo?: number) => {
   return "bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-500";
 };
 
-const formatPhoneNumber = (phone?: string) => {
-  if (!phone) return "Sem telefone";
-  
-  // Remove tudo que não é número
-  const cleaned = phone.replace(/\D/g, "");
-  
-  // Formata para (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
-  if (cleaned.length === 11) {
-    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
-  } else if (cleaned.length === 10) {
-    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
-  }
-  
-  return phone;
-};
+
 
 export default function ClienteCard({
   cliente,
   onClick,
+  onEdit,
+  onDelete,
 }: {
   cliente: ClienteTypes;
   onClick: () => void;
+  onEdit?: (cliente: ClienteTypes) => void;
+  onDelete?: (cliente: ClienteTypes) => void;
 }) {
   const status = getStatusLabel(cliente.ativo);
   const statusStyle = getStatusStyle(cliente.ativo);
 
-  const formattedPhone = formatPhoneNumber(cliente.telefone || cliente.whatsapp);
+  const formattedPhone = formatPhone(cliente.telefone || cliente.whatsapp);
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit?.(cliente);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete?.(cliente);
+  };
 
   return (
     <div
@@ -60,6 +64,30 @@ export default function ClienteCard({
           <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
             {cliente.email || "Sem email"}
           </span>
+        </div>
+
+        {/* Botões de ação */}
+        <div className="flex gap-1">
+          {onEdit && (
+            <IconButton
+              onClick={handleEdit}
+              size="small"
+              className="!text-blue-600 dark:!text-blue-400 hover:!bg-blue-50 dark:hover:!bg-blue-500/10"
+              title="Editar cliente"
+            >
+              <EditIcon className="!w-5 !h-5" />
+            </IconButton>
+          )}
+          {onDelete && (
+            <IconButton
+              onClick={handleDelete}
+              size="small"
+              className="!text-red-600 dark:!text-red-400 hover:!bg-red-50 dark:hover:!bg-red-500/10"
+              title="Excluir cliente"
+            >
+              <DeleteIcon className="!w-5 !h-5" />
+            </IconButton>
+          )}
         </div>
       </div>
 
