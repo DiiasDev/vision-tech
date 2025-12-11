@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Bell,
   Search,
@@ -8,9 +8,12 @@ import {
   Circle,
   Settings,
   LayoutDashboard,
-  FileText
+  FileText,
+  X
 } from "lucide-react";
 import { verificarStatusBackend } from "../../Services/frappeClient";
+import { globalSearch, type SearchResult } from "../../Services/search.api";
+import SearchDropdown from "./SearchDropdown";
 
 export default function Header() {
   const [darkMode, setDarkMode] = useState(() => {
@@ -20,6 +23,14 @@ export default function Header() {
   });
 
   const [backendStatus, setBackendStatus] = useState<"online" | "offline" | "verificando">("verificando");
+  
+  // Estados para a pesquisa
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Aplicar tema ao carregar a página
   useEffect(() => {
@@ -43,6 +54,56 @@ export default function Header() {
     return () => clearInterval(interval);
   }, []);
 
+  // Fechar dropdown ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Pesquisa com debounce
+  useEffect(() => {
+    // Limpar timeout anterior
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Se a query estiver vazia, limpar resultados
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      setIsSearching(false);
+      return;
+    }
+
+    // Iniciar pesquisa após 300ms de digitação
+    setIsSearching(true);
+    setShowDropdown(true);
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const results = await globalSearch(searchQuery);
+        setSearchResults(results);
+      } catch (error) {
+        console.error("Erro na pesquisa:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
   // Função de trocar tema
   const toggleTheme = () => {
     setDarkMode((prev) => {
@@ -58,6 +119,18 @@ export default function Header() {
       
       return newTheme;
     });
+  };
+
+  // Função para limpar pesquisa
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setShowDropdown(false);
+  };
+
+  // Função chamada ao selecionar um resultado
+  const handleSelectResult = () => {
+    clearSearch();
   };
 
   return (
@@ -98,22 +171,46 @@ export default function Header() {
       </div>
 
       {/* ---------- BARRA DE PESQUISA CENTRAL -------- */}
-      <div className="flex-1 px-6 max-w-xl hidden md:flex">
-        <div
-          className="
-            w-full flex items-center gap-3 
-            bg-[#1E293B]/60 dark:bg-[#0B1120]/60 
-            border border-[#1E293B]
-            rounded-xl px-4 py-2 
-            shadow-sm backdrop-blur-md transition
-          "
-        >
-          <Search size={18} className="opacity-60" />
-          <input
-            type="text"
-            placeholder="Buscar clientes, pedidos, documentos..."
-            className="w-full bg-transparent outline-none text-sm text-gray-200 placeholder-gray-400"
-          />
+      <div className="flex-1 px-6 max-w-xl hidden md:flex" ref={searchRef}>
+        <div className="w-full relative">
+          <div
+            className="
+              w-full flex items-center gap-3 
+              bg-[#1E293B]/60 dark:bg-[#0B1120]/60 
+              border border-[#1E293B]
+              rounded-xl px-4 py-2 
+              shadow-sm backdrop-blur-md transition
+              focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20
+            "
+          >
+            <Search size={18} className="opacity-60 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Buscar clientes, pedidos, documentos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => searchQuery.trim() && setShowDropdown(true)}
+              className="w-full bg-transparent outline-none text-sm text-gray-200 placeholder-gray-400"
+            />
+            {searchQuery && (
+              <button
+                onClick={clearSearch}
+                className="flex-shrink-0 p-1 hover:bg-gray-700/50 rounded-lg transition"
+              >
+                <X size={16} className="text-gray-400" />
+              </button>
+            )}
+          </div>
+
+          {/* DROPDOWN DE RESULTADOS */}
+          {showDropdown && (
+            <SearchDropdown
+              results={searchResults}
+              isLoading={isSearching}
+              query={searchQuery}
+              onSelectResult={handleSelectResult}
+            />
+          )}
         </div>
       </div>
 
