@@ -6,6 +6,9 @@ import {
   FiAlertTriangle, 
   FiPlusCircle 
 } from "react-icons/fi";
+import { listarClientes } from "../../Services/clients.api";
+import { type ClienteTypes } from "../../types/Clientes.types";
+
 
 import DashboardCard from "../../Components/Home/DashboardCard";
 import QuickAction from "../../Components/Home/QuickActions";
@@ -19,12 +22,12 @@ export default function Home() {
     version: "1.0.0",
   });
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [clientes, setClientes] = useState<ClienteTypes[]>([])
 
   useEffect(() => {
     async function checkBackendStatus() {
       const isOnline = await verificarStatusBackend();
       const now = new Date();
-      
       if (isOnline) {
         setLastSyncTime(now);
       }
@@ -36,13 +39,25 @@ export default function Home() {
       });
     }
 
-    // Verifica imediatamente
     checkBackendStatus();
 
     // Verifica a cada 30 segundos
     const interval = setInterval(checkBackendStatus, 30000);
 
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    async function fetchClientes() {
+      try{
+        const data = await listarClientes();
+        setClientes(data)
+      }catch(error){
+        console.log("Erro ao trazer clientes...")
+      }
+    }
+
+    fetchClientes();
   }, []);
 
   // Atualiza o tempo de sincronização a cada segundo
@@ -89,7 +104,7 @@ export default function Home() {
 
         <DashboardCard
           title="Clientes"
-          value="128"
+          value={clientes.length}
           icon={<FiUsers size={26} />}
           color="primary"
         />
