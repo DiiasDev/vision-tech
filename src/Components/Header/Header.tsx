@@ -137,8 +137,10 @@ export default function Header() {
     <header
       className="
         w-full h-16 px-6 flex items-center justify-between 
-        bg-[#0F172A] text-white shadow-md
-        dark:bg-[#020617] transition-all
+        bg-white dark:bg-[#1e2530] 
+        text-gray-900 dark:text-gray-100
+        border-b border-gray-200 dark:border-[#2d3542]
+        shadow-sm transition-all
       "
     >
       {/* -------- LOGO + NAVEGAÇÃO RÁPIDA ------- */}
@@ -153,17 +155,17 @@ export default function Header() {
 
         {/* ÍCONES DE NAVEGAÇÃO */}
         <nav className="hidden md:flex items-center gap-5 ml-6">
-          <button className="flex items-center gap-2 opacity-80 hover:opacity-100 transition">
+          <button className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition">
             <LayoutDashboard size={18} />
             <span className="text-sm">Dashboard</span>
           </button>
 
-          <button className="flex items-center gap-2 opacity-80 hover:opacity-100 transition">
+          <button className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition">
             <FileText size={18} />
             <span className="text-sm">Documentos</span>
           </button>
 
-          <button className="flex items-center gap-2 opacity-80 hover:opacity-100 transition">
+          <button className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition">
             <Settings size={18} />
             <span className="text-sm">Configurações</span>
           </button>
@@ -176,28 +178,28 @@ export default function Header() {
           <div
             className="
               w-full flex items-center gap-3 
-              bg-[#1E293B]/60 dark:bg-[#0B1120]/60 
-              border border-[#1E293B]
+              bg-gray-100 dark:bg-[#0f1419]
+              border border-gray-300 dark:border-[#2d3542]
               rounded-xl px-4 py-2 
-              shadow-sm backdrop-blur-md transition
-              focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20
+              shadow-sm transition
+              focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20
             "
           >
-            <Search size={18} className="opacity-60 flex-shrink-0" />
+            <Search size={18} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
             <input
               type="text"
               placeholder="Buscar clientes, pedidos, documentos..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => searchQuery.trim() && setShowDropdown(true)}
-              className="w-full bg-transparent outline-none text-sm text-gray-200 placeholder-gray-400"
+              className="w-full bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-500"
             />
             {searchQuery && (
               <button
                 onClick={clearSearch}
-                className="flex-shrink-0 p-1 hover:bg-gray-700/50 rounded-lg transition"
+                className="flex-shrink-0 p-1 hover:bg-gray-200 dark:hover:bg-gray-700/50 rounded-lg transition"
               >
-                <X size={16} className="text-gray-400" />
+                <X size={16} className="text-gray-400 dark:text-gray-500" />
               </button>
             )}
           </div>
@@ -223,22 +225,25 @@ export default function Header() {
             size={10} 
             className={
               backendStatus === "online" 
-                ? "text-green-400" 
+                ? "text-green-500 fill-green-500" 
                 : backendStatus === "offline"
-                ? "text-red-400"
-                : "text-yellow-400"
+                ? "text-red-500 fill-red-500"
+                : "text-yellow-500 fill-yellow-500"
             } 
           />
-          <span className="text-sm opacity-80 capitalize">{backendStatus}</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400 capitalize">{backendStatus}</span>
         </div>
 
         {/* BOTÃO DE TEMA */}
         <button
           onClick={toggleTheme}
           className="
-            p-2 rounded-xl border border-[#1E293B]
-            bg-[#1E293B]/40 hover:bg-[#1E293B]/70 
-            transition-all backdrop-blur-sm
+            p-2 rounded-xl 
+            border border-gray-300 dark:border-[#2d3542]
+            bg-gray-100 dark:bg-[#0f1419]
+            hover:bg-gray-200 dark:hover:bg-[#223043]
+            text-gray-700 dark:text-gray-300
+            transition-all
           "
         >
           {darkMode ? <Sun size={18} /> : <Moon size={18} />}
@@ -248,9 +253,12 @@ export default function Header() {
         <div className="relative">
           <button
             className="
-              p-2 rounded-xl border border-[#1E293B]
-              bg-[#1E293B]/40 hover:bg-[#1E293B]/70 
-              transition backdrop-blur-sm
+              p-2 rounded-xl 
+              border border-gray-300 dark:border-[#2d3542]
+              bg-gray-100 dark:bg-[#0f1419]
+              hover:bg-gray-200 dark:hover:bg-[#223043]
+              text-gray-700 dark:text-gray-300
+              transition
             "
           >
             <Bell size={18} />
@@ -260,7 +268,7 @@ export default function Header() {
           <span
             className="
               absolute -top-1 -right-1 
-              bg-red-500 text-[10px] 
+              bg-red-500 text-white text-[10px] 
               px-[6px] py-[1px] rounded-full
             "
           >
@@ -273,9 +281,9 @@ export default function Header() {
           <img
             src="https://ui-avatars.com/api/?name=User&background=1D4ED8&color=fff"
             alt="perfil"
-            className="w-9 h-9 rounded-xl border border-[#1E293B]"
+            className="w-9 h-9 rounded-xl border border-gray-300 dark:border-[#2d3542]"
           />
-          <ChevronDown size={18} className="opacity-70" />
+          <ChevronDown size={18} className="text-gray-600 dark:text-gray-400" />
         </div>
       </div>
     </header>

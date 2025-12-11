@@ -31,26 +31,26 @@ export default function SearchDropdown({
     <div
       className="
         absolute top-full left-0 right-0 mt-2 
-        bg-[#1E293B] dark:bg-[#0B1120]
-        border border-[#334155] dark:border-[#1E293B]
+        bg-white dark:bg-[#1e2530]
+        border border-gray-200 dark:border-[#2d3542]
         rounded-xl shadow-2xl 
         max-h-[500px] overflow-y-auto
-        z-50 backdrop-blur-lg
+        z-50
         animate-in fade-in slide-in-from-top-2 duration-200
       "
     >
       {/* LOADING STATE */}
       {isLoading && (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="animate-spin text-blue-400" size={24} />
-          <span className="ml-3 text-gray-400">Pesquisando...</span>
+          <Loader2 className="animate-spin text-blue-500 dark:text-blue-400" size={24} />
+          <span className="ml-3 text-gray-600 dark:text-gray-400">Pesquisando...</span>
         </div>
       )}
 
       {/* RESULTADOS */}
       {!isLoading && results.length > 0 && (
         <div className="py-2">
-          <div className="px-4 py-2 text-xs text-gray-400 font-semibold uppercase tracking-wider">
+          <div className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider">
             {results.length} {results.length === 1 ? "Resultado" : "Resultados"}
           </div>
 
@@ -64,9 +64,9 @@ export default function SearchDropdown({
                 onClick={() => handleResultClick(result)}
                 className="
                   w-full px-4 py-3 flex items-start gap-4
-                  hover:bg-[#334155]/40 dark:hover:bg-[#1E293B]/60
+                  hover:bg-gray-100 dark:hover:bg-[#223043]
                   transition-all duration-150
-                  border-b border-[#334155]/20 last:border-b-0
+                  border-b border-gray-200 dark:border-[#2d3542]/50 last:border-b-0
                   group cursor-pointer
                 "
               >
@@ -83,20 +83,20 @@ export default function SearchDropdown({
                     transition-all duration-200
                   "
                 >
-                  <Icon size={20} className="text-blue-400 group-hover:text-blue-300" />
+                  <Icon size={20} className="text-blue-500 dark:text-blue-400 group-hover:text-blue-400 dark:group-hover:text-blue-300" />
                 </div>
 
                 {/* CONTEÚDO */}
                 <div className="flex-1 text-left min-w-0">
                   {/* TÍTULO */}
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="text-white font-medium text-sm truncate group-hover:text-blue-300 transition-colors">
+                    <h4 className="text-gray-900 dark:text-white font-medium text-sm truncate group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors">
                       {result.title}
                     </h4>
                     <span
                       className="
                         text-[10px] px-2 py-0.5 rounded-full
-                        bg-blue-500/20 text-blue-300
+                        bg-blue-500/20 text-blue-600 dark:text-blue-300
                         border border-blue-500/30
                         font-semibold uppercase tracking-wider
                         flex-shrink-0
@@ -108,13 +108,13 @@ export default function SearchDropdown({
 
                   {/* SUBTÍTULO */}
                   {result.subtitle && (
-                    <p className="text-xs text-gray-400 truncate">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
                       {result.subtitle}
                     </p>
                   )}
 
                   {/* CAMINHO */}
-                  <p className="text-[11px] text-gray-500 mt-1 flex items-center gap-1">
+                  <p className="text-[11px] text-gray-500 dark:text-gray-500 mt-1 flex items-center gap-1">
                     <span className="opacity-60">→</span>
                     <span className="truncate">{result.path}</span>
                   </p>
@@ -131,21 +131,21 @@ export default function SearchDropdown({
           <div
             className="
               w-16 h-16 rounded-full
-              bg-gradient-to-br from-gray-500/20 to-gray-600/20
-              border border-gray-500/30
+              bg-gradient-to-br from-gray-400/20 to-gray-500/20
+              border border-gray-400/30 dark:border-gray-500/30
               flex items-center justify-center
               mb-4
             "
           >
-            <FileQuestion size={28} className="text-gray-400" />
+            <FileQuestion size={28} className="text-gray-500 dark:text-gray-400" />
           </div>
           
-          <h4 className="text-white font-medium mb-2">
+          <h4 className="text-gray-900 dark:text-white font-medium mb-2">
             Nenhum resultado encontrado
           </h4>
           
-          <p className="text-sm text-gray-400 text-center max-w-sm">
-            Não encontramos nada relacionado a <span className="text-blue-400 font-semibold">"{query}"</span>.
+          <p className="text-sm text-gray-600 dark:text-gray-400 text-center max-w-sm">
+            Não encontramos nada relacionado a <span className="text-blue-600 dark:text-blue-400 font-semibold">"{query}"</span>.
             Tente usar outros termos de busca.
           </p>
         </div>
