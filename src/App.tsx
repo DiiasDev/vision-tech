@@ -7,6 +7,8 @@ import NovoCliente from "./Pages/ClientsPage/ClientPage"
 import ClienteCard from "./Components/Clientes/ListaClientes"
 import IntegrationsDashboard from "./Components/Integrations/IntegrationsDashboard";
 import ClientIntegrationPage from "./Pages/IntegrationPage/ClientIntegrationPage";
+import ServicesDashboard from "./Components/Integrations/ServicesComponent/ServicesDashboard";
+import ServiceDetailPage from "./Pages/ServicePage/ServiceDetailPage";
 
 function App() {
   return (
@@ -20,6 +22,8 @@ function App() {
           <Route path="/Clientes/Lista" element={<ClienteCard />} />
           <Route path="/integracoes/clientes" element={<IntegrationsDashboard />} />
           <Route path="/integracoes/clientes/:clientId" element={<ClientIntegrationPage />} />
+          <Route path="/integracoes/backend" element={<ServicesDashboard />} />
+          <Route path="/integracoes/backend/:serviceId" element={<ServiceDetailPage />} />
         </Routes>
       </Layout>
     </SidebarProvider>

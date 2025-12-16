@@ -1,12 +1,17 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { integrationsMock } from "../../Components/Integrations/integrations.mock";
 import { StatusBadge } from "../../Components/Integrations/StatusBadge";
 import { ClientIntegrationApps } from "../../Components/Integrations/ClientIntegrationApps";
-import { ArrowLeft, Clock, Activity, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { InfrastructureStatus } from "../../Components/Integrations/InfrastructureStatus";
+import { AppErrorModal } from "../../Components/Integrations/AppErrorModal";
+import { ArrowLeft, Clock, Activity, AlertCircle, CheckCircle2, XCircle, Server } from "lucide-react";
+import { type IntegrationApp } from "../../types/integrations.types";
 
 export default function ClientIntegrationPage() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
+  const [selectedErrorApp, setSelectedErrorApp] = useState<IntegrationApp | null>(null);
 
   const client = integrationsMock.find((c) => c.id === clientId);
 
@@ -42,6 +47,12 @@ export default function ClientIntegrationPage() {
   const inactiveApps = client.apps.filter((app) => app.status === "inactive").length;
   const errorApps = client.apps.filter((app) => app.status === "error").length;
 
+  const handleErrorAppClick = (app: IntegrationApp) => {
+    if (app.status === "error" && app.errorDetails) {
+      setSelectedErrorApp(app);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header com botão de voltar */}
@@ -59,7 +70,7 @@ export default function ClientIntegrationPage() {
           </h1>
           <p className="text-sm text-[var(--sidebar-text-secondary)] flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-blue)]"></span>
-            Detalhes da integração e aplicações
+            Monitoramento completo da infraestrutura e serviços
           </p>
         </div>
         <StatusBadge status={client.status} />
@@ -162,7 +173,7 @@ export default function ClientIntegrationPage() {
               Aplicações Integradas
             </h2>
             <p className="text-sm text-[var(--sidebar-text-secondary)]">
-              Gerencie e monitore todas as aplicações conectadas
+              Apps ativas neste cliente - monitore versões e status
             </p>
           </div>
           <div className="px-4 py-2 bg-[var(--brand-blue)]/10 border border-[var(--brand-blue)]/20 rounded-xl">
@@ -171,8 +182,37 @@ export default function ClientIntegrationPage() {
             </span>
           </div>
         </div>
-        <ClientIntegrationApps apps={client.apps} />
+        <ClientIntegrationApps apps={client.apps} onErrorClick={handleErrorAppClick} />
       </div>
+
+      {/* Status da Infraestrutura */}
+      <div className="bg-[var(--page-bg-secondary)] p-8 rounded-2xl border border-[var(--sidebar-divider)] shadow-lg">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-3 bg-[var(--brand-blue)]/10 rounded-xl border border-[var(--brand-blue)]/20">
+            <Server size={24} className="text-[var(--brand-blue)]" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-[var(--sidebar-text)] mb-1">
+              Infraestrutura
+            </h2>
+            <p className="text-sm text-[var(--sidebar-text-secondary)]">
+              Monitoramento de servidores - site e banco de dados
+            </p>
+          </div>
+        </div>
+        <InfrastructureStatus infrastructure={client.infrastructure} />
+      </div>
+
+      {/* Modal de Erro */}
+      {selectedErrorApp && selectedErrorApp.errorDetails && (
+        <AppErrorModal
+          isOpen={true}
+          onClose={() => setSelectedErrorApp(null)}
+          appName={selectedErrorApp.name}
+          appVersion={selectedErrorApp.version}
+          errorDetails={selectedErrorApp.errorDetails}
+        />
+      )}
     </div>
   );
 }

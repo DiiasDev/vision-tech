@@ -38,7 +38,7 @@ export default function IntegrationsDashboard() {
               </h1>
               <p className="text-base text-[var(--sidebar-text-secondary)] flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                Gestão de clientes e aplicações integradas
+                Central de controle e monitoramento de clientes
               </p>
             </div>
           </div>
@@ -59,7 +59,7 @@ export default function IntegrationsDashboard() {
             <div>
               <h2 className="text-2xl font-bold text-[var(--sidebar-text)] mb-2">Clientes Integrados</h2>
               <p className="text-sm text-[var(--sidebar-text-secondary)]">
-                Visualize e gerencie todos os clientes e suas aplicações
+                Gerencie e monitore o status de todos os seus clientes
               </p>
             </div>
             {hasActiveFilters && (
