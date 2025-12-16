@@ -5,6 +5,7 @@ import { SidebarProvider } from "./contexts/SidebarContext";
 import Home from "./Pages/HomePage/HomePage";
 import NovoCliente from "./Pages/ClientsPage/ClientPage"
 import ClienteCard from "./Components/Clientes/ListaClientes"
+import NewFornecedor from "./Components/Fornecedores/NewFornecedor"
 import IntegrationsDashboard from "./Components/Integrations/IntegrationsDashboard";
 import ClientIntegrationPage from "./Pages/IntegrationPage/ClientIntegrationPage";
 import ServicesDashboard from "./Components/Integrations/ServicesComponent/ServicesDashboard";
@@ -37,6 +38,7 @@ function AppContent() {
           <Route path="/Home" element={<PrivateRoute><Home /></PrivateRoute>} />
           <Route path="/Clientes/Novo" element={<PrivateRoute><NovoCliente /></PrivateRoute>} />
           <Route path="/Clientes/Lista" element={<PrivateRoute><ClienteCard /></PrivateRoute>} />
+          <Route path="/fornecedores/cadastro" element={<PrivateRoute><NewFornecedor /></PrivateRoute>} />
           <Route path="/integracoes/clientes" element={<PrivateRoute><IntegrationsDashboard /></PrivateRoute>} />
           <Route path="/integracoes/clientes/:clientId" element={<PrivateRoute><ClientIntegrationPage /></PrivateRoute>} />
           <Route path="/integracoes/backend" element={<PrivateRoute><ServicesDashboard /></PrivateRoute>} />

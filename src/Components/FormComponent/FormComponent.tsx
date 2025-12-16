@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Select,
   MenuItem,
@@ -6,8 +6,18 @@ import {
   TextField,
   Checkbox,
   FormControlLabel,
+  Button,
+  Box,
+  Avatar,
+  IconButton,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs, { Dayjs } from "dayjs";
+import "dayjs/locale/pt-br";
+import { Upload, X } from "lucide-react";
 
 type Field = {
   fieldname: string;
@@ -37,9 +47,13 @@ const FormComponent: React.FC<FormComponentProps> = ({
 }) => {
   const [formData, setFormData] = useState<Record<string, any>>(initialData);
   const [loading, setLoading] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(
-    document.documentElement.classList.contains("dark")
-  );
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // Inicializar tema na montagem do componente
+  useEffect(() => {
+    setIsDarkMode(document.documentElement.classList.contains("dark"));
+  }, []);
 
   // Observar mudanças no dark mode
   useEffect(() => {
@@ -55,12 +69,12 @@ const FormComponent: React.FC<FormComponentProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  // Tema MUI customizado
-  const muiTheme = createTheme({
+  // Tema MUI customizado - recriado quando isDarkMode muda
+  const muiTheme = useMemo(() => createTheme({
     palette: {
       mode: isDarkMode ? "dark" : "light",
       primary: {
-        main: "#3b82f6",
+        main: isDarkMode ? "#60a5fa" : "#3b82f6",
         light: "#60a5fa",
         dark: "#1d4ed8",
       },
@@ -125,15 +139,16 @@ const FormComponent: React.FC<FormComponentProps> = ({
       MuiMenuItem: {
         styleOverrides: {
           root: {
-            color: isDarkMode ? "#f9fafb" : "#1f2937",
-            backgroundColor: isDarkMode ? "#1e2530" : "#ffffff",
+            color: isDarkMode ? "#f9fafb !important" : "#1f2937 !important",
+            backgroundColor: "transparent",
             "&:hover": {
-              backgroundColor: isDarkMode ? "rgba(59, 130, 246, 0.1)" : "rgba(29, 78, 216, 0.08)",
+              backgroundColor: isDarkMode ? "rgba(59, 130, 246, 0.15) !important" : "rgba(29, 78, 216, 0.08) !important",
             },
             "&.Mui-selected": {
-              backgroundColor: isDarkMode ? "rgba(59, 130, 246, 0.15)" : "rgba(29, 78, 216, 0.12)",
+              backgroundColor: isDarkMode ? "rgba(59, 130, 246, 0.2) !important" : "rgba(29, 78, 216, 0.12) !important",
+              color: isDarkMode ? "#ffffff !important" : "#1f2937 !important",
               "&:hover": {
-                backgroundColor: isDarkMode ? "rgba(59, 130, 246, 0.2)" : "rgba(29, 78, 216, 0.16)",
+                backgroundColor: isDarkMode ? "rgba(59, 130, 246, 0.25) !important" : "rgba(29, 78, 216, 0.16) !important",
               },
             },
           },
@@ -147,12 +162,64 @@ const FormComponent: React.FC<FormComponentProps> = ({
           },
         },
       },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            color: isDarkMode ? "#d1d5db !important" : "#6b7280 !important",
+            "&:hover": {
+              backgroundColor: isDarkMode ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.04)",
+            },
+          },
+        },
+      },
+      MuiDialogActions: {
+        styleOverrides: {
+          root: {
+            backgroundColor: isDarkMode ? "#1e2530" : "#ffffff",
+            borderTop: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
+            padding: "16px",
+          },
+        },
+      },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            color: isDarkMode ? "#60a5fa !important" : "#1d4ed8 !important",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            fontSize: "0.875rem",
+            "&:hover": {
+              backgroundColor: isDarkMode ? "rgba(59, 130, 246, 0.1)" : "rgba(29, 78, 216, 0.08)",
+            },
+          },
+        },
+      },
     },
-  });
+  }), [isDarkMode]);
 
   // Controle centralizado de mudança de valores
   const handleChange = (fieldname: string, value: any) => {
     setFormData((prev) => ({ ...prev, [fieldname]: value }));
+  };
+
+  // Manipular upload de imagem
+  const handleImageUpload = (fieldname: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setImagePreview(base64String);
+        handleChange(fieldname, base64String);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Remover imagem
+  const handleRemoveImage = (fieldname: string) => {
+    setImagePreview(null);
+    handleChange(fieldname, null);
   };
 
   // Enviar formulário
@@ -189,13 +256,24 @@ const FormComponent: React.FC<FormComponentProps> = ({
               onChange={(e) => handleChange(field.fieldname, e.target.value)}
               displayEmpty
               required={field.required}
+              sx={{
+                color: isDarkMode ? "#f9fafb !important" : "#1f2937 !important",
+                "& .MuiSelect-select": {
+                  color: isDarkMode ? "#f9fafb !important" : "#1f2937 !important",
+                },
+              }}
               MenuProps={{
                 PaperProps: {
                   sx: {
                     bgcolor: isDarkMode ? "#1e2530" : "#ffffff",
                     maxHeight: 300,
+                    boxShadow: isDarkMode 
+                      ? "0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3)"
+                      : "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                    border: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
                     "& .MuiList-root": {
                       padding: "8px",
+                      bgcolor: isDarkMode ? "#1e2530" : "#ffffff",
                     },
                   },
                 },
@@ -203,7 +281,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
             >
               <MenuItem value="" disabled>
                 <span style={{ 
-                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                  color: isDarkMode ? "#9ca3af !important" : "#6b7280 !important",
                   fontStyle: "italic",
                 }}>
                   Selecione...
@@ -277,24 +355,153 @@ const FormComponent: React.FC<FormComponentProps> = ({
 
       case "Date":
         return (
-          <TextField
-            fullWidth
-            type="date"
-            value={value}
-            required={field.required}
-            onChange={(e) => handleChange(field.fieldname, e.target.value)}
-            variant="outlined"
-            size="small"
-            InputLabelProps={{
-              shrink: true,
-            }}
-            sx={{
-              "& input[type='date']::-webkit-calendar-picker-indicator": {
-                filter: isDarkMode ? "invert(1)" : "invert(0)",
-                cursor: "pointer",
-              },
-            }}
-          />
+          <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
+            <DatePicker
+              value={value ? dayjs(value) : null}
+              onChange={(newValue: Dayjs | null) => {
+                handleChange(field.fieldname, newValue ? newValue.format("YYYY-MM-DD") : "");
+              }}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  size: "small",
+                  required: field.required,
+                  variant: "outlined",
+                },
+                actionBar: {
+                  actions: ["clear", "today", "accept"],
+                },
+                popper: {
+                  sx: {
+                    "& .MuiPaper-root": {
+                      backgroundColor: isDarkMode ? "#1e2530" : "#ffffff",
+                      boxShadow: isDarkMode 
+                        ? "0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3)"
+                        : "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                      border: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
+                    },
+                    "& .MuiPickersDay-root": {
+                      color: isDarkMode ? "#f9fafb" : "#1f2937",
+                      "&:hover": {
+                        backgroundColor: isDarkMode ? "rgba(59, 130, 246, 0.1)" : "rgba(29, 78, 216, 0.08)",
+                      },
+                      "&.Mui-selected": {
+                        backgroundColor: isDarkMode ? "#3b82f6 !important" : "#1d4ed8 !important",
+                        color: "#ffffff !important",
+                        "&:hover": {
+                          backgroundColor: isDarkMode ? "#2563eb !important" : "#1e40af !important",
+                        },
+                      },
+                    },
+                    "& .MuiPickersCalendarHeader-root": {
+                      color: isDarkMode ? "#f9fafb" : "#1f2937",
+                    },
+                    "& .MuiPickersCalendarHeader-label": {
+                      color: isDarkMode ? "#f9fafb" : "#1f2937",
+                      fontWeight: 500,
+                    },
+                    "& .MuiPickersCalendarHeader-switchViewButton": {
+                      color: isDarkMode ? "#f9fafb" : "#1f2937",
+                    },
+                    "& .MuiDayCalendar-weekDayLabel": {
+                      color: isDarkMode ? "#9ca3af" : "#6b7280",
+                      fontWeight: 600,
+                    },
+                    "& .MuiPickersYear-yearButton": {
+                      color: isDarkMode ? "#f9fafb" : "#1f2937",
+                      "&:hover": {
+                        backgroundColor: isDarkMode ? "rgba(59, 130, 246, 0.1)" : "rgba(29, 78, 216, 0.08)",
+                      },
+                      "&.Mui-selected": {
+                        backgroundColor: isDarkMode ? "#3b82f6 !important" : "#1d4ed8 !important",
+                        color: "#ffffff !important",
+                      },
+                    },
+                    "& .MuiPickersMonth-monthButton": {
+                      color: isDarkMode ? "#f9fafb" : "#1f2937",
+                      "&:hover": {
+                        backgroundColor: isDarkMode ? "rgba(59, 130, 246, 0.1)" : "rgba(29, 78, 216, 0.08)",
+                      },
+                      "&.Mui-selected": {
+                        backgroundColor: isDarkMode ? "#3b82f6 !important" : "#1d4ed8 !important",
+                        color: "#ffffff !important",
+                      },
+                    },
+                  },
+                },
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  backgroundColor: isDarkMode ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.02)",
+                },
+              }}
+            />
+          </LocalizationProvider>
+        );
+
+      case "Attach Image":
+        return (
+          <Box className="flex flex-col gap-3">
+            <input
+              type="file"
+              accept="image/*"
+              id={`upload-${field.fieldname}`}
+              style={{ display: "none" }}
+              onChange={(e) => handleImageUpload(field.fieldname, e)}
+            />
+            
+            {imagePreview || value ? (
+              <Box className="relative inline-block">
+                <Avatar
+                  src={imagePreview || value}
+                  alt="Preview"
+                  sx={{
+                    width: 120,
+                    height: 120,
+                    border: isDarkMode ? "3px solid #374151" : "3px solid #e5e7eb",
+                  }}
+                />
+                <IconButton
+                  size="small"
+                  onClick={() => handleRemoveImage(field.fieldname)}
+                  sx={{
+                    position: "absolute",
+                    top: -8,
+                    right: -8,
+                    backgroundColor: isDarkMode ? "#ef4444" : "#dc2626",
+                    color: "white",
+                    "&:hover": {
+                      backgroundColor: isDarkMode ? "#dc2626" : "#b91c1c",
+                    },
+                  }}
+                >
+                  <X size={16} />
+                </IconButton>
+              </Box>
+            ) : (
+              <label htmlFor={`upload-${field.fieldname}`}>
+                <Box
+                  className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors"
+                  sx={{
+                    borderColor: isDarkMode ? "#374151" : "#d1d5db",
+                    backgroundColor: isDarkMode ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.02)",
+                    "&:hover": {
+                      borderColor: isDarkMode ? "#60a5fa" : "#3b82f6",
+                      backgroundColor: isDarkMode ? "rgba(59, 130, 246, 0.05)" : "rgba(59, 130, 246, 0.05)",
+                    },
+                  }}
+                >
+                  <Upload size={32} className="mx-auto mb-2" style={{ color: isDarkMode ? "#9ca3af" : "#6b7280" }} />
+                  <p className="text-sm" style={{ color: isDarkMode ? "#9ca3af" : "#6b7280" }}>
+                    Clique para fazer upload da imagem
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: isDarkMode ? "#6b7280" : "#9ca3af" }}>
+                    PNG, JPG, GIF até 10MB
+                  </p>
+                </Box>
+              </label>
+            )}
+          </Box>
         );
 
       default:
