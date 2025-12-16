@@ -14,6 +14,7 @@ import {
 import { verificarStatusBackend } from "../../Services/frappeClient";
 import { globalSearch, type SearchResult } from "../../Services/search.api";
 import SearchDropdown from "./SearchDropdown";
+import { NotificationModal } from "../Modals/NotificationModal";
 
 export default function Header() {
   const [darkMode, setDarkMode] = useState(() => {
@@ -31,6 +32,9 @@ export default function Header() {
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Estado para o modal de notificações
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
 
   // Aplicar tema ao carregar a página
   useEffect(() => {
@@ -252,6 +256,7 @@ export default function Header() {
         {/* NOTIFICAÇÕES */}
         <div className="relative">
           <button
+            onClick={() => setShowNotificationModal(true)}
             className="
               p-2 rounded-xl 
               border border-gray-300 dark:border-[#2d3542]
@@ -286,6 +291,12 @@ export default function Header() {
           <ChevronDown size={18} className="text-gray-600 dark:text-gray-400" />
         </div>
       </div>
+
+      {/* MODAL DE NOTIFICAÇÕES */}
+      <NotificationModal 
+        open={showNotificationModal} 
+        onClose={() => setShowNotificationModal(false)} 
+      />
     </header>
   );
 }
