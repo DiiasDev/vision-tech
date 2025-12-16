@@ -3,9 +3,11 @@ import { listarClientes, atualizarCliente, deletarCliente } from "../../Services
 import { type ClienteTypes } from "../../types/Clientes.types";
 import ClienteModal from "../Modals/ClientesModal"
 import ClienteCard from "./ClientesCard";
+import { Search, Filter, X } from "lucide-react";
 
 export default function ClientsList() {
   const [clientes, setClientes] = useState<ClienteTypes[]>([]);
+  const [filteredClientes, setFilteredClientes] = useState<ClienteTypes[]>([]);
   const [selectedCliente, setSelectedCliente] = useState<ClienteTypes | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -14,6 +16,11 @@ export default function ClientsList() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<ClienteTypes | null>(null);
   const [deleting, setDeleting] = useState(false);
+  
+  // Filtros
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "PF" | "PJ">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
 
   useEffect(() => {
     async function fetchClientes() {
@@ -22,6 +29,7 @@ export default function ClientsList() {
         setError(null);
         const data = await listarClientes();
         setClientes(data);
+        setFilteredClientes(data);
       } catch (err) {
         console.error("Erro ao carregar clientes:", err);
         setError("Não foi possível carregar os clientes.");
@@ -32,6 +40,36 @@ export default function ClientsList() {
 
     fetchClientes();
   }, []);
+
+  // Aplicar filtros
+  useEffect(() => {
+    let result = [...clientes];
+
+    // Filtro de busca
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(cliente => 
+        cliente.nome?.toLowerCase().includes(term) ||
+        cliente.email?.toLowerCase().includes(term) ||
+        cliente.cpf?.toLowerCase().includes(term) ||
+        cliente.cnpj?.toLowerCase().includes(term) ||
+        cliente.telefone?.toLowerCase().includes(term)
+      );
+    }
+
+    // Filtro de tipo
+    if (filterType !== "all") {
+      result = result.filter(cliente => cliente.tipo_cliente === filterType);
+    }
+
+    // Filtro de status
+    if (filterStatus !== "all") {
+      const isActive = filterStatus === "active";
+      result = result.filter(cliente => cliente.ativo === (isActive ? 1 : 0));
+    }
+
+    setFilteredClientes(result);
+  }, [searchTerm, filterType, filterStatus, clientes]);
 
   const handleEdit = (cliente: ClienteTypes) => {
     setSelectedCliente(cliente);
@@ -45,6 +83,7 @@ export default function ClientsList() {
       // Recarregar a lista de clientes
       const updatedClientes = await listarClientes();
       setClientes(updatedClientes);
+      setFilteredClientes(updatedClientes);
       setModalOpen(false);
       setIsEditMode(false);
     } catch (error) {
@@ -67,6 +106,7 @@ export default function ClientsList() {
       // Recarregar a lista de clientes
       const updatedClientes = await listarClientes();
       setClientes(updatedClientes);
+      setFilteredClientes(updatedClientes);
       setDeleteModalOpen(false);
       setClienteToDelete(null);
     } catch (error) {
@@ -98,7 +138,79 @@ export default function ClientsList() {
     <div className="p-6 flex flex-col gap-6">
 
       {/* Título */}
-      <h1 className="text-2xl font-bold text-white">Clientes</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-white">Clientes</h1>
+        <div className="text-sm text-gray-400">
+          {filteredClientes.length} de {clientes.length} {clientes.length === 1 ? "cliente" : "clientes"}
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="bg-[#1e2530] border border-[#2d3542] rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Filter size={18} className="text-blue-400" />
+          <span className="text-white font-medium">Filtros</span>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Busca */}
+          <div className="relative">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por nome, email, CPF..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 bg-[#0a0e13] border border-[#2d3542] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+
+          {/* Tipo de Cliente */}
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value as "all" | "PF" | "PJ")}
+            className="px-4 py-2.5 bg-[#0a0e13] border border-[#2d3542] rounded-lg text-white focus:outline-none focus:border-blue-500 transition-colors"
+          >
+            <option value="all">Todos os tipos</option>
+            <option value="PF">Pessoa Física</option>
+            <option value="PJ">Pessoa Jurídica</option>
+          </select>
+
+          {/* Status */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as "all" | "active" | "inactive")}
+            className="px-4 py-2.5 bg-[#0a0e13] border border-[#2d3542] rounded-lg text-white focus:outline-none focus:border-blue-500 transition-colors"
+          >
+            <option value="all">Todos os status</option>
+            <option value="active">Ativos</option>
+            <option value="inactive">Inativos</option>
+          </select>
+        </div>
+
+        {/* Limpar filtros */}
+        {(searchTerm || filterType !== "all" || filterStatus !== "all") && (
+          <button
+            onClick={() => {
+              setSearchTerm("");
+              setFilterType("all");
+              setFilterStatus("all");
+            }}
+            className="mt-4 text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+          >
+            <X size={14} />
+            Limpar filtros
+          </button>
+        )}
+      </div>
 
       {/* Loading */}
       {loading && (
@@ -115,12 +227,14 @@ export default function ClientsList() {
       {/* Grid de Cards */}
       {!loading && !error && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {clientes.length === 0 ? (
+          {filteredClientes.length === 0 ? (
             <div className="col-span-full text-center text-gray-400 py-8">
-              Nenhum cliente cadastrado.
+              {searchTerm || filterType !== "all" || filterStatus !== "all" 
+                ? "Nenhum cliente encontrado com os filtros aplicados."
+                : "Nenhum cliente cadastrado."}
             </div>
           ) : (
-            clientes.map((cliente) => (
+            filteredClientes.map((cliente) => (
               <ClienteCard
                 key={cliente.nome}
                 cliente={cliente}

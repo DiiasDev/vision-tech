@@ -3,9 +3,11 @@ import { listarFornecedores, atualizarFornecedor, deletarFornecedor } from "../.
 import { type Fornecedor } from "../../types/Fornecedores.types";
 import FornecedorModal from "../Modals/FornecedoresModal"
 import FornecedorCard from "./FornecedoresCard";
+import { Search, Filter, X } from "lucide-react";
 
 export default function FornecedoresList() {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [filteredFornecedores, setFilteredFornecedores] = useState<Fornecedor[]>([]);
   const [selectedFornecedor, setSelectedFornecedor] = useState<Fornecedor | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -14,6 +16,10 @@ export default function FornecedoresList() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [fornecedorToDelete, setFornecedorToDelete] = useState<Fornecedor | null>(null);
   const [deleting, setDeleting] = useState(false);
+  
+  // Filtros
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
 
   useEffect(() => {
     async function fetchFornecedores() {
@@ -22,6 +28,7 @@ export default function FornecedoresList() {
         setError(null);
         const data = await listarFornecedores();
         setFornecedores(data);
+        setFilteredFornecedores(data);
       } catch (err) {
         console.error("Erro ao carregar fornecedores:", err);
         setError("Não foi possível carregar os fornecedores.");
@@ -32,6 +39,30 @@ export default function FornecedoresList() {
 
     fetchFornecedores();
   }, []);
+
+  // Aplicar filtros
+  useEffect(() => {
+    let result = [...fornecedores];
+
+    // Filtro de busca
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(fornecedor => 
+        fornecedor.nome_fornecedor?.toLowerCase().includes(term) ||
+        fornecedor.email?.toLowerCase().includes(term) ||
+        fornecedor.cnpj?.toLowerCase().includes(term) ||
+        fornecedor.telefone?.toLowerCase().includes(term)
+      );
+    }
+
+    // Filtro de status
+    if (filterStatus !== "all") {
+      const isActive = filterStatus === "active";
+      result = result.filter(fornecedor => fornecedor.ativo === (isActive ? 1 : 0));
+    }
+
+    setFilteredFornecedores(result);
+  }, [searchTerm, filterStatus, fornecedores]);
 
   const handleEdit = (fornecedor: Fornecedor) => {
     setSelectedFornecedor(fornecedor);
@@ -45,6 +76,7 @@ export default function FornecedoresList() {
       // Recarregar a lista de fornecedores
       const updatedFornecedores = await listarFornecedores();
       setFornecedores(updatedFornecedores);
+      setFilteredFornecedores(updatedFornecedores);
       setModalOpen(false);
       setIsEditMode(false);
     } catch (error) {
@@ -67,6 +99,7 @@ export default function FornecedoresList() {
       // Recarregar a lista de fornecedores
       const updatedFornecedores = await listarFornecedores();
       setFornecedores(updatedFornecedores);
+      setFilteredFornecedores(updatedFornecedores);
       setDeleteModalOpen(false);
       setFornecedorToDelete(null);
     } catch (error) {
@@ -98,7 +131,67 @@ export default function FornecedoresList() {
     <div className="p-6 flex flex-col gap-6">
 
       {/* Título */}
-      <h1 className="text-2xl font-bold text-white">Fornecedores</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-white">Fornecedores</h1>
+        <div className="text-sm text-gray-400">
+          {filteredFornecedores.length} de {fornecedores.length} {fornecedores.length === 1 ? "fornecedor" : "fornecedores"}
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="bg-[#1e2530] border border-[#2d3542] rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Filter size={18} className="text-blue-400" />
+          <span className="text-white font-medium">Filtros</span>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Busca */}
+          <div className="relative">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por nome, email, CNPJ..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 bg-[#0a0e13] border border-[#2d3542] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+
+          {/* Status */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as "all" | "active" | "inactive")}
+            className="px-4 py-2.5 bg-[#0a0e13] border border-[#2d3542] rounded-lg text-white focus:outline-none focus:border-blue-500 transition-colors"
+          >
+            <option value="all">Todos os status</option>
+            <option value="active">Ativos</option>
+            <option value="inactive">Inativos</option>
+          </select>
+        </div>
+
+        {/* Limpar filtros */}
+        {(searchTerm || filterStatus !== "all") && (
+          <button
+            onClick={() => {
+              setSearchTerm("");
+              setFilterStatus("all");
+            }}
+            className="mt-4 text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+          >
+            <X size={14} />
+            Limpar filtros
+          </button>
+        )}
+      </div>
 
       {/* Loading */}
       {loading && (
@@ -115,12 +208,14 @@ export default function FornecedoresList() {
       {/* Grid de Cards */}
       {!loading && !error && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {fornecedores.length === 0 ? (
+          {filteredFornecedores.length === 0 ? (
             <div className="col-span-full text-center text-gray-400 py-8">
-              Nenhum fornecedor cadastrado.
+              {searchTerm || filterStatus !== "all"
+                ? "Nenhum fornecedor encontrado com os filtros aplicados."
+                : "Nenhum fornecedor cadastrado."}
             </div>
           ) : (
-            fornecedores.map((fornecedor) => (
+            filteredFornecedores.map((fornecedor) => (
               <FornecedorCard
                 key={fornecedor.nome_fornecedor}
                 fornecedor={fornecedor}
