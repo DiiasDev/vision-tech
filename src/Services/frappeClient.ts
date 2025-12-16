@@ -13,11 +13,14 @@ export const frappe = axios.create({
   },
 });
 
-// Intercepta erros automaticamente
+// Intercepta erros automaticamente (apenas para erros críticos)
 frappe.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error("Erro na API do Frappe:", error);
+    // Loga apenas erros que não sejam 404 ou 417 (endpoints não implementados)
+    if (error.response?.status !== 404 && error.response?.status !== 417) {
+      console.error("Erro na API do Frappe:", error.response?.data || error.message);
+    }
     throw error;
   }
 );

@@ -6,6 +6,14 @@ export interface ServiceError {
   lastOccurrence: string;
 }
 
+export interface ServiceLog {
+  id: string;
+  timestamp: string;
+  level: "info" | "warning" | "error" | "debug";
+  message: string;
+  details?: any;
+}
+
 export interface ServiceItem {
   id: string;
   name: string;
@@ -16,4 +24,5 @@ export interface ServiceItem {
   lastCheck: string;
   version?: string;
   error?: ServiceError;
+  logs?: ServiceLog[];
 }

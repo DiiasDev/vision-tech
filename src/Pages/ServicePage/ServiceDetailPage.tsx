@@ -1,13 +1,55 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { servicesMock } from "../../Components/Integrations/ServicesComponent/services.mock";
 import { ServiceStatusBadge } from "../../Components/Integrations/ServicesComponent/ServiceStatusBadge";
-import { ArrowLeft, Clock, Activity, Server, AlertTriangle, CheckCircle2, XCircle, Code, PlayCircle } from "lucide-react";
+import { ArrowLeft, Clock, Activity, Server, AlertTriangle, CheckCircle2, XCircle, Code, PlayCircle, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
+import type { ServiceItem } from "../../types/services.types";
+import { getAllServices } from "../../Services/services.api";
 
 export default function ServiceDetailPage() {
   const { serviceId } = useParams<{ serviceId: string }>();
   const navigate = useNavigate();
+  const [service, setService] = useState<ServiceItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const service = servicesMock.find((s) => s.id === serviceId);
+  const loadService = async () => {
+    try {
+      setRefreshing(true);
+      const services = await getAllServices();
+      const foundService = services.find((s) => s.id === serviceId);
+      setService(foundService || null);
+    } catch (error) {
+      console.error("Erro ao carregar serviço:", error);
+      setService(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadService();
+
+    // Atualiza a cada 30 segundos
+    const interval = setInterval(() => {
+      loadService();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [serviceId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="flex items-center gap-3">
+          <RefreshCw className="animate-spin text-[var(--brand-blue)]" size={32} />
+          <span className="text-[var(--sidebar-text-secondary)] text-lg">
+            Carregando detalhes do serviço...
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   if (!service) {
     return (
@@ -57,7 +99,17 @@ export default function ServiceDetailPage() {
             Monitoramento detalhado do serviço
           </p>
         </div>
-        <ServiceStatusBadge status={service.status} />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={loadService}
+            disabled={refreshing}
+            className="p-3 hover:bg-[var(--sidebar-hover)] rounded-xl transition-all disabled:opacity-50"
+            title="Atualizar"
+          >
+            <RefreshCw size={20} className={`text-[var(--brand-blue)] ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <ServiceStatusBadge status={service.status} />
+        </div>
       </div>
 
       {/* Cards de Informações */}
