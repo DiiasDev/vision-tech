@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Header from "./Components/Header/Header";
 import { Layout } from "./Components/Sidebar/Layout";
 import { SidebarProvider } from "./contexts/SidebarContext";
@@ -9,25 +9,47 @@ import IntegrationsDashboard from "./Components/Integrations/IntegrationsDashboa
 import ClientIntegrationPage from "./Pages/IntegrationPage/ClientIntegrationPage";
 import ServicesDashboard from "./Components/Integrations/ServicesComponent/ServicesDashboard";
 import ServiceDetailPage from "./Pages/ServicePage/ServiceDetailPage";
+import Login from "./Pages/AuthPage/AuthPage";
+import { useAuth } from "./hooks/useAuth";
 
-function App() {
+function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated() ? <>{children}</> : <Navigate to="/" replace />;
+}
+
+function AppContent() {
+  const location = useLocation();
+  const isLoginPage = location.pathname === "/";
+
+  if (isLoginPage) {
+    return (
+      <Routes>
+        <Route path="/" element={<Login />} />
+      </Routes>
+    );
+  }
+
   return (
     <SidebarProvider>
       <Layout>
         <Header />
         <Routes>
-          <Route path="/" element={<Navigate to="/Home" replace />} />
-          <Route path="/Home" element={<Home />} />
-          <Route path="/Clientes/Novo" element={<NovoCliente />} />
-          <Route path="/Clientes/Lista" element={<ClienteCard />} />
-          <Route path="/integracoes/clientes" element={<IntegrationsDashboard />} />
-          <Route path="/integracoes/clientes/:clientId" element={<ClientIntegrationPage />} />
-          <Route path="/integracoes/backend" element={<ServicesDashboard />} />
-          <Route path="/integracoes/backend/:serviceId" element={<ServiceDetailPage />} />
+          <Route path="/Home" element={<PrivateRoute><Home /></PrivateRoute>} />
+          <Route path="/Clientes/Novo" element={<PrivateRoute><NovoCliente /></PrivateRoute>} />
+          <Route path="/Clientes/Lista" element={<PrivateRoute><ClienteCard /></PrivateRoute>} />
+          <Route path="/integracoes/clientes" element={<PrivateRoute><IntegrationsDashboard /></PrivateRoute>} />
+          <Route path="/integracoes/clientes/:clientId" element={<PrivateRoute><ClientIntegrationPage /></PrivateRoute>} />
+          <Route path="/integracoes/backend" element={<PrivateRoute><ServicesDashboard /></PrivateRoute>} />
+          <Route path="/integracoes/backend/:serviceId" element={<PrivateRoute><ServiceDetailPage /></PrivateRoute>} />
+          <Route path="*" element={<Navigate to="/Home" replace />} />
         </Routes>
       </Layout>
     </SidebarProvider>
   );
+}
+
+function App() {
+  return <AppContent />;
 }
 
 export default App;
