@@ -4,6 +4,7 @@ import { integrationsMock } from "../../Components/Integrations/integrations.moc
 import { StatusBadge } from "../../Components/Integrations/StatusBadge";
 import { ClientIntegrationApps } from "../../Components/Integrations/ClientIntegrationApps";
 import { InfrastructureStatus } from "../../Components/Integrations/InfrastructureStatus";
+import { WebsiteInformation } from "../../Components/Integrations/WebsiteInformation";
 import { AppErrorModal } from "../../Components/Integrations/AppErrorModal";
 import { ArrowLeft, Clock, Activity, AlertCircle, CheckCircle2, XCircle, Server } from "lucide-react";
 import { type IntegrationApp } from "../../types/integrations.types";
@@ -202,6 +203,11 @@ export default function ClientIntegrationPage() {
         </div>
         <InfrastructureStatus infrastructure={client.infrastructure} />
       </div>
+
+      {/* Informações do Site/Hospedagem */}
+      {client.website && (
+        <WebsiteInformation website={client.website} />
+      )}
 
       {/* Modal de Erro */}
       {selectedErrorApp && selectedErrorApp.errorDetails && (

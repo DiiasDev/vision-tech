@@ -6,6 +6,12 @@ export const integrationsMock: ClientIntegration[] = [
     clientName: "Empresa Alpha",
     status: "active",
     lastSync: "2025-12-14 18:32",
+    website: {
+      url: "https://www.empresaalpha.com.br",
+      domain: "empresaalpha.com.br",
+      hosting: "AWS EC2 (us-east-1)",
+      sslStatus: "active",
+    },
     apps: [
       {
         id: "app-1",
@@ -56,6 +62,12 @@ export const integrationsMock: ClientIntegration[] = [
     clientName: "Tech Solutions",
     status: "inactive",
     lastSync: "2025-12-01 09:10",
+    website: {
+      url: "https://techsolutions.com",
+      domain: "techsolutions.com",
+      hosting: "DigitalOcean Droplet (NYC3)",
+      sslStatus: "expired",
+    },
     apps: [
       {
         id: "app-3",

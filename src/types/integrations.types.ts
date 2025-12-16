@@ -36,4 +36,10 @@ export interface ClientIntegration {
   apps: IntegrationApp[];
   lastSync: string;
   infrastructure: InfrastructureStatus[];
+  website?: {
+    url: string;
+    domain: string;
+    hosting: string;
+    sslStatus: "active" | "expired" | "none";
+  };
 }
