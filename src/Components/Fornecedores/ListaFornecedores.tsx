@@ -132,34 +132,34 @@ export default function FornecedoresList() {
 
       {/* Título */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Fornecedores</h1>
-        <div className="text-sm text-gray-400">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fornecedores</h1>
+        <div className="text-sm text-gray-600 dark:text-gray-400">
           {filteredFornecedores.length} de {fornecedores.length} {fornecedores.length === 1 ? "fornecedor" : "fornecedores"}
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="bg-[#1e2530] border border-[#2d3542] rounded-xl p-4">
+      <div className="bg-white dark:bg-[#1e2530] border border-gray-200 dark:border-[#2d3542] rounded-xl p-4">
         <div className="flex items-center gap-2 mb-4">
-          <Filter size={18} className="text-blue-400" />
-          <span className="text-white font-medium">Filtros</span>
+          <Filter size={18} className="text-blue-500 dark:text-blue-400" />
+          <span className="text-gray-900 dark:text-white font-medium">Filtros</span>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Busca */}
           <div className="relative">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
             <input
               type="text"
               placeholder="Buscar por nome, email, CNPJ..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 bg-[#0a0e13] border border-[#2d3542] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+              className="w-full pl-10 pr-10 py-2.5 bg-gray-50 dark:bg-[#0a0e13] border border-gray-300 dark:border-[#2d3542] rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
               >
                 <X size={18} />
               </button>
@@ -170,7 +170,7 @@ export default function FornecedoresList() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as "all" | "active" | "inactive")}
-            className="px-4 py-2.5 bg-[#0a0e13] border border-[#2d3542] rounded-lg text-white focus:outline-none focus:border-blue-500 transition-colors"
+            className="px-4 py-2.5 bg-gray-50 dark:bg-[#0a0e13] border border-gray-300 dark:border-[#2d3542] rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
           >
             <option value="all">Todos os status</option>
             <option value="active">Ativos</option>
@@ -185,7 +185,7 @@ export default function FornecedoresList() {
               setSearchTerm("");
               setFilterStatus("all");
             }}
-            className="mt-4 text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+            className="mt-4 text-sm text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors flex items-center gap-1"
           >
             <X size={14} />
             Limpar filtros

@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, Activity, Server, AlertTriangle, CheckCircle2, XCircl
 import { useEffect, useState } from "react";
 import type { ServiceItem } from "../../types/services.types";
 import { getAllServices } from "../../Services/services.api";
+import { formatDateTime } from "../../Utils/Formatter";
 
 export default function ServiceDetailPage() {
   const { serviceId } = useParams<{ serviceId: string }>();
@@ -184,7 +185,7 @@ export default function ServiceDetailPage() {
                 <Clock size={20} className="text-[var(--brand-blue)]" />
                 <span className="text-[var(--sidebar-text-secondary)] text-sm font-medium">Última Verificação</span>
               </div>
-              <span className="text-[var(--sidebar-text)] font-semibold">{service.lastCheck}</span>
+              <span className="text-[var(--sidebar-text)] font-semibold">{formatDateTime(service.lastCheck)}</span>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-[var(--page-bg)] rounded-xl border border-[var(--sidebar-divider)]">
