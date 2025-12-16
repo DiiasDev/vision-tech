@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { sidebarSections } from "./SidebarData";
 import { useSidebar } from "../../contexts/SidebarContext";
+import { useAuth } from "../../hooks/useAuth";
 
 import {
   ChevronDown,
@@ -11,6 +12,8 @@ import {
 
 export function Sidebar() {
   const { isOpen, toggleSidebar } = useSidebar();
+  const { getLoggedUser } = useAuth();
+  const loggedUser = getLoggedUser();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const location = useLocation();
 
@@ -251,18 +254,18 @@ export function Sidebar() {
         "
       >
         <img
-          src="https://i.pravatar.cc/40"
-          alt="avatar"
+          src={loggedUser?.avatar || "https://i.pravatar.cc/40"}
+          alt={loggedUser?.fullName || "avatar"}
           className="w-9 h-9 rounded-full flex-shrink-0"
         />
 
         {isOpen && (
           <div className="overflow-hidden flex-1">
             <p className="text-sm text-[var(--sidebar-text)] font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-              Gabriel Dias
+              {loggedUser?.fullName || "Usuário"}
             </p>
             <p className="text-xs text-[var(--sidebar-text-secondary)] whitespace-nowrap overflow-hidden text-ellipsis">
-              visiontech@empresa.com
+              {loggedUser?.email || "email@empresa.com"}
             </p>
           </div>
         )}

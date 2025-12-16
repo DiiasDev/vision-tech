@@ -9,14 +9,19 @@ import {
   Settings,
   LayoutDashboard,
   FileText,
-  X
+  X,
+  LogOut
 } from "lucide-react";
 import { verificarStatusBackend } from "../../Services/frappeClient";
 import { globalSearch, type SearchResult } from "../../Services/search.api";
 import SearchDropdown from "./SearchDropdown";
 import { NotificationModal } from "../Modals/NotificationModal";
+import { useAuth } from "../../hooks/useAuth";
 
 export default function Header() {
+  const { getLoggedUser, logout } = useAuth();
+  const loggedUser = getLoggedUser();
+
   const [darkMode, setDarkMode] = useState(() => {
     // Inicializar com o tema salvo
     const savedTheme = localStorage.getItem("theme");
@@ -135,6 +140,12 @@ export default function Header() {
   // Função chamada ao selecionar um resultado
   const handleSelectResult = () => {
     clearSearch();
+  };
+
+  // Função de logout
+  const handleLogout = () => {
+    logout();
+    window.location.href = "/login";
   };
 
   return (
@@ -282,13 +293,56 @@ export default function Header() {
         </div>
 
         {/* PERFIL */}
-        <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition">
-          <img
-            src="https://ui-avatars.com/api/?name=User&background=1D4ED8&color=fff"
-            alt="perfil"
-            className="w-9 h-9 rounded-xl border border-gray-300 dark:border-[#2d3542]"
-          />
-          <ChevronDown size={18} className="text-gray-600 dark:text-gray-400" />
+        <div className="relative group">
+          <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition">
+            <img
+              src={loggedUser?.avatar || "https://ui-avatars.com/api/?name=User&background=1D4ED8&color=fff"}
+              alt={loggedUser?.fullName || "perfil"}
+              className="w-9 h-9 rounded-xl border border-gray-300 dark:border-[#2d3542]"
+            />
+            {loggedUser && (
+              <div className="hidden lg:flex flex-col">
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {loggedUser.fullName}
+                </span>
+              </div>
+            )}
+            <ChevronDown size={18} className="text-gray-600 dark:text-gray-400" />
+          </div>
+
+          {/* DROPDOWN DO PERFIL */}
+          <div className="
+            absolute right-0 top-full mt-2 w-56
+            bg-white dark:bg-[#1e2530]
+            border border-gray-200 dark:border-[#2d3542]
+            rounded-xl shadow-lg
+            opacity-0 invisible group-hover:opacity-100 group-hover:visible
+            transition-all duration-200 z-50
+          ">
+            <div className="p-3 border-b border-gray-200 dark:border-[#2d3542]">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {loggedUser?.fullName || "Usuário"}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {loggedUser?.email || "email@empresa.com"}
+              </p>
+            </div>
+            
+            <div className="p-2">
+              <button
+                onClick={handleLogout}
+                className="
+                  w-full flex items-center gap-3 px-3 py-2
+                  text-sm text-red-600 dark:text-red-400
+                  hover:bg-red-50 dark:hover:bg-red-950/20
+                  rounded-lg transition
+                "
+              >
+                <LogOut size={16} />
+                <span>Sair</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

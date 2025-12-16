@@ -15,6 +15,7 @@ export function LoginCard() {
     e.preventDefault();
     const success = await login(username, password);
     if (success) {
+      // Redirecionar para Home após login bem-sucedido
       window.location.href = "/Home";
     }
   }

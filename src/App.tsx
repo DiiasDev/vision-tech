@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Header from "./Components/Header/Header";
 import { Layout } from "./Components/Sidebar/Layout";
 import { SidebarProvider } from "./contexts/SidebarContext";
@@ -16,44 +16,64 @@ import { useAuth } from "./hooks/useAuth";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
-  return isAuthenticated() ? <>{children}</> : <Navigate to="/" replace />;
+  return isAuthenticated() ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
-function AppContent() {
-  const location = useLocation();
-  const isLoginPage = location.pathname === "/";
-
-  if (isLoginPage) {
-    return (
-      <Routes>
-        <Route path="/" element={<Login />} />
-      </Routes>
-    );
-  }
-
-  return (
-    <SidebarProvider>
-      <Layout>
-        <Header />
-        <Routes>
-          <Route path="/Home" element={<PrivateRoute><Home /></PrivateRoute>} />
-          <Route path="/Clientes/Novo" element={<PrivateRoute><NovoCliente /></PrivateRoute>} />
-          <Route path="/Clientes/Lista" element={<PrivateRoute><ClienteCard /></PrivateRoute>} />
-          <Route path="/fornecedores/cadastro" element={<PrivateRoute><NewFornecedor /></PrivateRoute>} />
-          <Route path="/fornecedores" element={<PrivateRoute><ListaFornecedores /></PrivateRoute>} />
-          <Route path="/integracoes/clientes" element={<PrivateRoute><IntegrationsDashboard /></PrivateRoute>} />
-          <Route path="/integracoes/clientes/:clientId" element={<PrivateRoute><ClientIntegrationPage /></PrivateRoute>} />
-          <Route path="/integracoes/backend" element={<PrivateRoute><ServicesDashboard /></PrivateRoute>} />
-          <Route path="/integracoes/backend/:serviceId" element={<PrivateRoute><ServiceDetailPage /></PrivateRoute>} />
-          <Route path="*" element={<Navigate to="/Home" replace />} />
-        </Routes>
-      </Layout>
-    </SidebarProvider>
-  );
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated() ? <Navigate to="/Home" replace /> : <>{children}</>;
 }
 
 function App() {
-  return <AppContent />;
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <Routes>
+      {/* Rota raiz - redireciona baseado em autenticação */}
+      <Route 
+        path="/" 
+        element={
+          isAuthenticated() ? <Navigate to="/Home" replace /> : <Navigate to="/login" replace />
+        } 
+      />
+
+      {/* Rota pública de Login */}
+      <Route 
+        path="/login" 
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        } 
+      />
+
+      {/* Rotas protegidas com Layout */}
+      <Route 
+        path="/*" 
+        element={
+          <PrivateRoute>
+            <SidebarProvider>
+              <Layout>
+                <Header />
+                <Routes>
+                  <Route path="/Home" element={<Home />} />
+                  <Route path="/Clientes/Novo" element={<NovoCliente />} />
+                  <Route path="/Clientes/Lista" element={<ClienteCard />} />
+                  <Route path="/fornecedores/cadastro" element={<NewFornecedor />} />
+                  <Route path="/fornecedores" element={<ListaFornecedores />} />
+                  <Route path="/integracoes/clientes" element={<IntegrationsDashboard />} />
+                  <Route path="/integracoes/clientes/:clientId" element={<ClientIntegrationPage />} />
+                  <Route path="/integracoes/backend" element={<ServicesDashboard />} />
+                  <Route path="/integracoes/backend/:serviceId" element={<ServiceDetailPage />} />
+                  <Route path="*" element={<Navigate to="/Home" replace />} />
+                </Routes>
+              </Layout>
+            </SidebarProvider>
+          </PrivateRoute>
+        } 
+      />
+    </Routes>
+  );
 }
 
 export default App;
