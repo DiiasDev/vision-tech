@@ -150,6 +150,8 @@ export const sidebarSections: SidebarSection[] = [
           { label: "Configurações", path: "/integracoes/configuracoes" },
           { label: "API Keys", path: "/integracoes/api-keys" },
           { label: "Webhooks", path: "/integracoes/webhooks" },
+          { label: "Gestão de Clientes", path: "/integracoes/clientes" },
+          { label: "Servidor Backend", path: "/integracoes/backend" },
         ],
       },
     ],
