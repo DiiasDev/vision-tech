@@ -49,17 +49,17 @@ export function NotificationModal({ open, onClose }: Props) {
     return true;
   });
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    );
-  };
+  // const markAsRead = (id: string) => {
+  //   setNotifications(prev =>
+  //     prev.map(n => n.id === id ? { ...n, read: true } : n)
+  //   );
+  // };
 
-  const markAsUnread = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => n.id === id ? { ...n, read: false } : n)
-    );
-  };
+  // const markAsUnread = (id: string) => {
+  //   setNotifications(prev =>
+  //     prev.map(n => n.id === id ? { ...n, read: false } : n)
+  //   );
+  // };
 
   const toggleRead = (id: string) => {
     setNotifications(prev =>

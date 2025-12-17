@@ -104,7 +104,7 @@ export default function Home() {
 
         <DashboardCard
           title="Clientes"
-          value={clientes.length}
+          value={clientes? clientes.length : "0"}
           icon={<FiUsers size={26} />}
           color="primary"
         />

@@ -1,6 +1,4 @@
 // src/components/system/SystemStatusItem.tsx
-import React from "react";
-
 interface SystemStatusItemProps {
   label: string;
   value: string;

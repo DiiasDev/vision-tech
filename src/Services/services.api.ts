@@ -56,9 +56,9 @@ export async function getServiceErrors(serviceId: string, limit: number = 10): P
  */
 export async function checkFrappeStatus(): Promise<ServiceItem> {
   try {
-    const startTime = Date.now();
+    // const startTime = Date.now();
     const response = await frappe.get("/method/frappe.utils.change_log.get_versions");
-    const responseTime = Date.now() - startTime;
+    // const responseTime = Date.now() - startTime;
     
     const versions = response.data.message || {};
     
@@ -105,7 +105,7 @@ export async function checkFrappeStatus(): Promise<ServiceItem> {
  * Verifica o status do frontend Vision Tech
  */
 export function checkVisionTechStatus(): ServiceItem {
-  const startTime = performance.now();
+  // const startTime = performance.now();
   const uptime = performance.now();
   
   // Calcula o uptime baseado em quando a aplicação iniciou
