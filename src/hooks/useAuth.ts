@@ -1,17 +1,21 @@
 import { useState } from "react";
+import { validarColaborador } from "../Services/colaboradores.api";
 
 export interface LoggedUser {
   username: string;
   fullName: string;
   email: string;
   avatar?: string;
+  cargo?: string;
+  codigo?: string;
 }
 
 const DEFAULT_USER = {
-  username: "admin",
-  password: "123",
-  fullName: "Administrator",
-  email: "administrator@visiontech.com",
+  username: "Gabriel Dias",
+  password: "new@H9e8s3w2",
+  fullName: "Gabriel Dias",
+  email: "gabriel.dias@visiontech.com",
+  cargo: "Diretor",
 };
 
 const STORAGE_KEYS = {
@@ -27,28 +31,54 @@ export function useAuth() {
     setLoading(true);
     setError(null);
 
-    await new Promise((res) => setTimeout(res, 800)); // simula request
+    try {
+      // Validação com usuário padrão (Gabriel Dias - Diretor)
+      if (
+        username === DEFAULT_USER.username &&
+        password === DEFAULT_USER.password
+      ) {
+        const userData: LoggedUser = {
+          username: DEFAULT_USER.username,
+          fullName: DEFAULT_USER.fullName,
+          email: DEFAULT_USER.email,
+          cargo: DEFAULT_USER.cargo,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(DEFAULT_USER.fullName)}&background=1D4ED8&color=fff`,
+        };
 
-    if (
-      username === DEFAULT_USER.username &&
-      password === DEFAULT_USER.password
-    ) {
-      const userData: LoggedUser = {
-        username: DEFAULT_USER.username,
-        fullName: DEFAULT_USER.fullName,
-        email: DEFAULT_USER.email,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(DEFAULT_USER.fullName)}&background=1D4ED8&color=fff`,
-      };
+        localStorage.setItem(STORAGE_KEYS.AUTH, "true");
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
+        setLoading(false);
+        return true;
+      }
 
-      localStorage.setItem(STORAGE_KEYS.AUTH, "true");
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
+      // Validação via API de colaboradores
+      const resultado = await validarColaborador(username, password);
+
+      if (resultado.success && resultado.colaborador) {
+        const userData: LoggedUser = {
+          username: resultado.colaborador.username ?? "",
+          fullName: resultado.colaborador.fullName ?? "",
+          email: resultado.colaborador.email ?? "",
+          cargo: resultado.colaborador.cargo,
+          codigo: resultado.colaborador.codigo,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(resultado.colaborador.fullName ?? "")}&background=1D4ED8&color=fff`,
+        };
+
+        localStorage.setItem(STORAGE_KEYS.AUTH, "true");
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
+        setLoading(false);
+        return true;
+      }
+
+      setError(resultado.message || "Usuário ou senha inválidos");
       setLoading(false);
-      return true;
+      return false;
+    } catch (error: any) {
+      console.error("Erro no login:", error);
+      setError("Erro ao realizar login. Tente novamente.");
+      setLoading(false);
+      return false;
     }
-
-    setError("Usuário ou senha inválidos");
-    setLoading(false);
-    return false;
   }
 
   function logout() {

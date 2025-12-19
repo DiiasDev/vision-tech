@@ -73,3 +73,71 @@ export async function deletarColaborador(name: string) {
     throw error;
   }
 }
+
+
+export async function validarColaborador(username: string, password: string) {
+  try {
+    const colaboradores = await listarColaboradores();
+    
+    // Senha padrão para todos os colaboradores
+    const SENHA_PADRAO = "123";
+    
+    // Busca o colaborador pelo email ou nome de usuário (independente das permissões)
+    const colaboradorEncontrado = colaboradores.find(
+      col => 
+        col.email?.toLowerCase() === username.toLowerCase() || 
+        col.usuario_sistema?.toLowerCase() === username.toLowerCase() ||
+        col.nome_completo?.toLowerCase() === username.toLowerCase()
+    );
+
+    if (!colaboradorEncontrado) {
+      return {
+        success: false,
+        message: "Usuário não encontrado"
+      };
+    }
+
+    // Verifica se o colaborador está ativo
+    if (colaboradorEncontrado.status !== "Ativo") {
+      return {
+        success: false,
+        message: "Colaborador inativo. Entre em contato com o administrador."
+      };
+    }
+
+    // Verifica se tem permissão de acesso ao sistema
+    if (colaboradorEncontrado.pode_acessar_sistema !== 1) {
+      return {
+        success: false,
+        message: "Acesso ao sistema não autorizado. Entre em contato com o administrador."
+      };
+    }
+
+    // Valida a senha padrão
+    if (password !== SENHA_PADRAO) {
+      return {
+        success: false,
+        message: "Senha incorreta"
+      };
+    }
+
+    // Retorna os dados do colaborador validado
+    return {
+      success: true,
+      colaborador: {
+        name: colaboradorEncontrado.name,
+        username: colaboradorEncontrado.usuario_sistema || colaboradorEncontrado.email,
+        fullName: colaboradorEncontrado.nome_completo,
+        email: colaboradorEncontrado.email,
+        cargo: colaboradorEncontrado.cargo,
+        codigo: colaboradorEncontrado.codigo_colaborador
+      }
+    };
+  } catch (error: any) {
+    console.error("Erro ao validar colaborador:", error);
+    return {
+      success: false,
+      message: "Erro ao validar credenciais"
+    };
+  }
+}
