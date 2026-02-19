@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { CircleAlert, CircleCheck, Eye, EyeOff, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -39,6 +40,7 @@ function getApiMessage(payload: unknown, fallback: string) {
 }
 
 export function LoginForm() {
+  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState("")
@@ -80,6 +82,7 @@ export function LoginForm() {
         type: "success",
         message: getApiMessage(payload, "Login realizado com sucesso."),
       })
+      router.replace("/dashboard")
     } catch {
       setFeedback({
         type: "error",

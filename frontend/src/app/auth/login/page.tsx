@@ -11,7 +11,7 @@ export default function LoginPage() {
 
         <div className="relative z-10">
           <h1 className="text-4xl font-bold tracking-tight">
-            Vision <span className="text-[hsl(var(--gold))]">Tech</span>
+            Vision <span className="text-accent">Tech</span>
           </h1>
           <p className="mt-4 text-lg text-white/80">
             Sistema completo de gestão empresarial
