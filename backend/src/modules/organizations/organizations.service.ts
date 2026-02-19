@@ -5,7 +5,7 @@ import { PrismaClient } from '@prisma/client';
 export class OrganizationsService {
   private prisma = new PrismaClient();
 
-  public async getOrganizations(){
+  public async getOrganizations() {
     return await this.prisma.organization.findMany();
   }
 }
