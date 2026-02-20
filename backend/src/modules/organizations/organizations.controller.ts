@@ -8,8 +8,8 @@ export class OrganizationsController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  public async getOrganizations(@Req() req: any) {
-    console.log('Empresa autenticado:', req.organizations);
+  public async getOrganizations(@Req() req: { user: unknown }) {
+    console.log('Empresa autenticada:', req.user);
     return this.organizationsservices.getOrganizations();
   }
 }

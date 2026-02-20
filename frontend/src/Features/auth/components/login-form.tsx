@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { saveAuthSession } from "@/lib/auth-session"
 // import { ThemeToggle } from "@/components/shared/theme-toggle"
 
 type FeedbackState = {
@@ -20,6 +21,13 @@ type FeedbackState = {
 type LoginResponse = {
   success?: boolean
   message?: string | string[]
+  accessToken?: string
+  user?: {
+    id: string
+    name: string
+    email: string
+    role?: string
+  }
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
@@ -76,6 +84,10 @@ export function LoginForm() {
           message: getApiMessage(payload, "Nao foi possivel realizar login."),
         })
         return
+      }
+
+      if (loginPayload?.accessToken) {
+        saveAuthSession(loginPayload.accessToken, loginPayload.user ?? null)
       }
 
       setFeedback({
