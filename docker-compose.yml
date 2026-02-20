@@ -1,16 +1,14 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:15
     container_name: visiontech_postgres
     restart: always
     environment:
-      POSTGRES_USER: visiontech
-      POSTGRES_PASSWORD: visiontech123
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: visiontech_db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
