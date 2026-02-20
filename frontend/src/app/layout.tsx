@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/shared/theme-provider"
 import "./globals.css";
@@ -12,7 +12,6 @@ export const metadata: Metadata = {
   title: "Vision Tech",
   description: "Sistema de Gestão Empresarial",
   manifest: "/manifest.json",
-  themeColor: "#0f172a",
   appleWebApp: {
     capable: true,
     title: "VisionTech",
@@ -21,6 +20,10 @@ export const metadata: Metadata = {
   icons: {
     apple: "/icons/apple-touch-icon.png",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f172a",
 };
 
 const geistMono = Geist_Mono({
