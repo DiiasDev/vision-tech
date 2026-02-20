@@ -186,12 +186,10 @@ export function Sidebar({ isOpen }: SidebarProps) {
                     : "border-transparent bg-transparent"
                 )}
               >
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!hasSubItems) return
-                    toggleSection(item.name, isExpanded)
-                  }}
+                {hasSubItems ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(item.name, isExpanded)}
                     className={cn(
                       "group flex w-full items-center justify-between px-4 py-3 text-left transition-colors",
                       isActiveRoot || isActiveSub
@@ -199,22 +197,43 @@ export function Sidebar({ isOpen }: SidebarProps) {
                         : "text-sidebar-foreground/75 hover:bg-background/55 hover:text-foreground"
                     )}
                   >
-                  <span className="flex items-center gap-3">
-                    <span
-                      className={cn(
-                        "inline-flex h-7 w-7 items-center justify-center rounded-md border border-sidebar-border/60 bg-background/50",
-                        (isActiveRoot || isActiveSub) && "border-primary/40 bg-primary/15 text-primary"
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
+                    <span className="flex items-center gap-3">
+                      <span
+                        className={cn(
+                          "inline-flex h-7 w-7 items-center justify-center rounded-md border border-sidebar-border/60 bg-background/50",
+                          (isActiveRoot || isActiveSub) && "border-primary/40 bg-primary/15 text-primary"
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span className="font-medium">{item.name}</span>
                     </span>
-                    <span className="font-medium">{item.name}</span>
-                  </span>
 
-                  {hasSubItems ? (
                     <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
-                  ) : null}
-                </button>
+                  </button>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "group flex w-full items-center justify-between px-4 py-3 text-left transition-colors",
+                      isActiveRoot || isActiveSub
+                        ? "text-foreground"
+                        : "text-sidebar-foreground/75 hover:bg-background/55 hover:text-foreground"
+                    )}
+                  >
+                    <span className="flex items-center gap-3">
+                      <span
+                        className={cn(
+                          "inline-flex h-7 w-7 items-center justify-center rounded-md border border-sidebar-border/60 bg-background/50",
+                          (isActiveRoot || isActiveSub) && "border-primary/40 bg-primary/15 text-primary"
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span className="font-medium">{item.name}</span>
+                    </span>
+                  </Link>
+                )}
 
                 {hasSubItems && isExpanded ? (
                   <div className="mx-4 mb-3 space-y-1 border-l border-sidebar-border/70 pl-3">
