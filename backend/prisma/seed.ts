@@ -1,8 +1,13 @@
-import { PrismaClient } from '@prisma/client'
+import {
+  PrismaClient,
+  PlanType,
+  OrganizationStatus,
+  ClientType,
+  ClientStatus,
+} from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import * as bcrypt from 'bcrypt'
 import 'dotenv/config'
-
 
 const databaseUrl = process.env.DATABASE_URL
 
@@ -17,7 +22,7 @@ async function main() {
   console.log('🌱 Starting seed...')
 
   /*
-   * 1️⃣ Criar permissões globais
+   * 1️⃣ PERMISSIONS
    */
 
   const permissions = [
@@ -25,6 +30,8 @@ async function main() {
     { code: 'VIEW_PRODUCT', description: 'View products' },
     { code: 'CREATE_FINANCIAL', description: 'Create financial records' },
     { code: 'VIEW_FINANCIAL', description: 'View financial records' },
+    { code: 'CREATE_CLIENT', description: 'Create clients' },
+    { code: 'VIEW_CLIENT', description: 'View clients' },
   ]
 
   for (const permission of permissions) {
@@ -38,7 +45,7 @@ async function main() {
   console.log('✅ Permissions ensured.')
 
   /*
-   * 2️⃣ Criar Organization demo
+   * 2️⃣ ORGANIZATION
    */
 
   const organization = await prisma.organization.upsert({
@@ -47,26 +54,24 @@ async function main() {
     create: {
       name: 'Demo Company',
       slug: 'demo-company',
-      plan: 'FREE',
-      status: 'ACTIVE',
+      plan: PlanType.ESSENTIAL, // ✅ corrigido
+      status: OrganizationStatus.ACTIVE, // ✅ corrigido
     },
   })
 
   console.log('✅ Organization ensured.')
 
   /*
-   * 3️⃣ Criar Role ADMIN para essa organização
+   * 3️⃣ ROLE ADMIN
    */
 
-  const existingAdminRole = await prisma.role.findFirst({
-    where: {
-      name: 'ADMIN',
-      organizationId: organization.id,
-    },
-  })
-
   const adminRole =
-    existingAdminRole ??
+    (await prisma.role.findFirst({
+      where: {
+        name: 'ADMIN',
+        organizationId: organization.id,
+      },
+    })) ??
     (await prisma.role.create({
       data: {
         name: 'ADMIN',
@@ -77,7 +82,7 @@ async function main() {
   console.log('✅ Admin role ensured.')
 
   /*
-   * 4️⃣ Vincular permissões ao ADMIN
+   * 4️⃣ ROLE PERMISSIONS
    */
 
   const allPermissions = await prisma.permission.findMany()
@@ -101,7 +106,7 @@ async function main() {
   console.log('✅ Role permissions ensured.')
 
   /*
-   * 5️⃣ Criar usuário admin
+   * 5️⃣ USER ADMIN
    */
 
   const hashedPassword = await bcrypt.hash('123456', 10)
@@ -120,7 +125,7 @@ async function main() {
   console.log('✅ Admin user ensured.')
 
   /*
-   * 6️⃣ Vincular usuário à organização
+   * 6️⃣ USER ↔ ORGANIZATION
    */
 
   await prisma.userOrganization.upsert({
@@ -140,6 +145,47 @@ async function main() {
   })
 
   console.log('✅ User linked to organization.')
+
+  /*
+   * 7️⃣ CLIENTES DEMO
+   */
+
+  const existingClients = await prisma.client.count({
+    where: { organizationId: organization.id },
+  })
+
+  if (existingClients === 0) {
+    await prisma.client.createMany({
+      data: [
+        {
+          code: 'CLI-0001',
+          organizationId: organization.id,
+          type: ClientType.PJ,
+          name: 'Empresa Alpha',
+          document: '12.345.678/0001-99',
+          email: 'contato@alpha.com',
+          telephone: '11999999999',
+          status: ClientStatus.ACTIVE,
+          city: 'São Paulo',
+          state: 'SP',
+        },
+        {
+          code: 'CLI-0002',
+          organizationId: organization.id,
+          type: ClientType.PF,
+          name: 'João Silva',
+          document: '123.456.789-00',
+          email: 'joao@email.com',
+          telephone: '11888888888',
+          status: ClientStatus.DELINQUENT,
+          city: 'Campinas',
+          state: 'SP',
+        },
+      ],
+    })
+
+    console.log('✅ Demo clients created.')
+  }
 
   console.log('🌱 Seed completed successfully!')
 }

@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { clientsData } from "@/components/clients/mock-data"
 
-export default function ClientsFilters() {
+type ClientsFiltersProps = {
+  onNewClientClick?: () => void
+}
+
+export default function ClientsFilters({ onNewClientClick }: ClientsFiltersProps) {
   const enterpriseCount = clientsData.filter((client) => client.plano === "Enterprise").length
   const riskCount = clientsData.filter((client) => client.status === "Em risco" || client.status === "Inadimplente").length
   const onboardingCount = clientsData.filter((client) => client.status === "Onboarding").length
@@ -47,7 +51,7 @@ export default function ClientsFilters() {
           Filtros Avancados
         </Button>
 
-        <Button className="h-10 rounded-xl">
+        <Button className="h-10 rounded-xl" onClick={onNewClientClick}>
           <Plus className="h-4 w-4" />
           Novo Cliente
         </Button>

@@ -6,73 +6,155 @@ datasource db {
   provider = "postgresql"
 }
 
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELED
+}
+
+enum PlanType {
+  ESSENTIAL
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum ClientType {
+  PF
+  PJ
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+  DELINQUENT
+}
+
 model Organization {
-  id        String   @id @default(uuid())
+  id        String              @id @default(uuid())
   name      String
-  slug      String   @unique
-  plan      String
-  status    String   @default("ACTIVE")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  slug      String              @unique
+  plan      PlanType            @default(ESSENTIAL)
+  status    OrganizationStatus  @default(ACTIVE)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 
   users     UserOrganization[]
   roles     Role[]
+  clients   Client[]
 }
 
 model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String             @id @default(uuid())
+  name           String
+  email          String             @unique
+  passwordHash   String
+  isActive       Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
-  organizations UserOrganization[]
+  organizations  UserOrganization[]
+
+  clientsCreated      Client[] @relation("ClientCreatedBy")
+  clientsResponsible  Client[] @relation("ClientResponsible")
 }
 
 model UserOrganization {
-  id             String   @id @default(uuid())
+  id             String        @id @default(uuid())
   userId         String
   organizationId String
   roleId         String
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
 
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  role           Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           Role          @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([userId, organizationId])
 }
 
 model Role {
-  id             String   @id @default(uuid())
+  id             String            @id @default(uuid())
   name           String
   organizationId String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   users          UserOrganization[]
   permissions    RolePermission[]
 }
 
 model Permission {
-  id          String   @id @default(uuid())
-  code        String   @unique
+  id          String            @id @default(uuid())
+  code        String            @unique
   description String?
 
   roles       RolePermission[]
 }
 
 model RolePermission {
-  id           String @id @default(uuid())
+  id           String       @id @default(uuid())
   roleId       String
   permissionId String
 
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission   @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permissionId])
+}
+
+model Client {
+  id                  String        @id @default(uuid())
+  code                String
+
+  organizationId      String
+  organization        Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  type                ClientType
+  name                String
+  document            String
+
+  email               String?
+  telephone           String?
+
+  status              ClientStatus  @default(ACTIVE)
+  lastContact         DateTime?
+
+  /*
+   * Responsável dentro da empresa do CLIENTE (ex: gerente da empresa PJ)
+   */
+  responsibleName     String?
+  responsibleEmail    String?
+  responsiblePhone    String?
+
+  /*
+   * Auditoria e controle interno
+   */
+  createdById         String?
+  createdBy           User?        @relation("ClientCreatedBy", fields: [createdById], references: [id])
+
+  responsibleUserId   String?
+  responsibleUser     User?        @relation("ClientResponsible", fields: [responsibleUserId], references: [id])
+
+  /*
+   * Endereço
+   */
+  street              String?
+  number              String?
+  neighborhood        String?
+  city                String?
+  state               String?
+  zipCode             String?
+
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  deletedAt           DateTime?
+
+  @@index([organizationId])
+  @@index([createdById])
+  @@index([responsibleUserId])
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, document])
 }

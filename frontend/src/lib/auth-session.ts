@@ -24,10 +24,14 @@ export function getAccessToken() {
   return window.localStorage.getItem(AUTH_TOKEN_KEY)
 }
 
-export function getStoredHeaderUser(): HeaderUser | null {
-  if (typeof window === "undefined") return null
+export function clearAuthSession() {
+  if (typeof window === "undefined") return
+  window.localStorage.removeItem(AUTH_TOKEN_KEY)
+  window.localStorage.removeItem(AUTH_USER_KEY)
+}
 
-  const rawUser = window.localStorage.getItem(AUTH_USER_KEY)
+export function getStoredHeaderUser(): HeaderUser | null {
+  const rawUser = getStoredHeaderUserRaw()
   if (!rawUser) return null
 
   try {
@@ -41,6 +45,11 @@ export function getStoredHeaderUser(): HeaderUser | null {
   } catch {
     return null
   }
+}
+
+export function getStoredHeaderUserRaw() {
+  if (typeof window === "undefined") return null
+  return window.localStorage.getItem(AUTH_USER_KEY)
 }
 
 export function saveHeaderUser(user: HeaderUser) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { usePathname } from "next/navigation"
 
@@ -11,7 +11,12 @@ import { HeaderSystemStatus } from "@/components/layout/header-system-status"
 import { HeaderUserProfile } from "@/components/layout/header-user-profile"
 import { ThemeToggle } from "@/components/shared/theme-toggle"
 import { Button } from "@/components/ui/button"
-import { getAccessToken, getStoredHeaderUser, saveHeaderUser } from "@/lib/auth-session"
+import {
+  clearAuthSession,
+  getAccessToken,
+  getStoredHeaderUserRaw,
+  saveHeaderUser,
+} from "@/lib/auth-session"
 
 type HeaderProps = {
   sidebarOpen: boolean
@@ -40,7 +45,31 @@ function humanizeSegment(segment: string) {
 
 export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
   const pathname = usePathname()
-  const [headerUser, setHeaderUser] = useState(() => getStoredHeaderUser() ?? mockHeaderUser)
+  const [fetchedHeaderUser, setFetchedHeaderUser] = useState<typeof mockHeaderUser | null>(null)
+  const storedHeaderUserRaw = useSyncExternalStore(
+    (onStoreChange) => {
+      if (typeof window === "undefined") return () => undefined
+      window.addEventListener("storage", onStoreChange)
+      return () => window.removeEventListener("storage", onStoreChange)
+    },
+    () => getStoredHeaderUserRaw() ?? "",
+    () => ""
+  )
+  const storedHeaderUser = useMemo(() => {
+    if (!storedHeaderUserRaw) return null
+    try {
+      const parsed = JSON.parse(storedHeaderUserRaw) as { name?: string; role?: string | null }
+      if (!parsed.name || typeof parsed.name !== "string") return null
+      return {
+        fullName: parsed.name,
+        role: typeof parsed.role === "string" && parsed.role.trim() ? parsed.role : "Sem cargo",
+      }
+    } catch {
+      return null
+    }
+  }, [storedHeaderUserRaw])
+
+  const headerUser = fetchedHeaderUser ?? storedHeaderUser ?? mockHeaderUser
 
   const { section, detail } = useMemo(() => {
     const segments = pathname.split("/").filter(Boolean)
@@ -77,6 +106,10 @@ export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
       cache: "no-store",
     })
       .then(async (response) => {
+        if (response.status === 401) {
+          clearAuthSession()
+          return null
+        }
         if (!response.ok) return null
         return response.json() as Promise<{ name?: string; role?: string }>
       })
@@ -88,7 +121,7 @@ export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
           role: payload.role?.trim() ? payload.role : "Sem cargo",
         }
 
-        setHeaderUser(user)
+        setFetchedHeaderUser(user)
         saveHeaderUser(user)
       })
       .catch(() => null)

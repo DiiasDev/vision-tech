@@ -1,7 +1,12 @@
-import { ArrowUpRight, ChartNoAxesColumnIncreasing, Users } from "lucide-react"
+"use client"
 
+import { useState } from "react"
+import { ArrowUpRight, ChartNoAxesColumnIncreasing, CircleAlert, CircleCheck, Users } from "lucide-react"
+
+import ClientForm from "@/components/clients/clientForm"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import ClientsKPIs from "@/components/clients/ClientsKPIs"
 import ClientsFilters from "@/components/clients/ClientsFilters"
 import ClientsTable from "@/components/clients/ClientsTable"
@@ -9,6 +14,12 @@ import { clientsData } from "@/components/clients/mock-data"
 
 export default function DashboardClientsPage() {
   const mrr = clientsData.reduce((acc, client) => acc + client.mrr, 0)
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error"
+    message: string
+  } | null>(null)
 
   return (
     <div className="space-y-6">
@@ -59,11 +70,32 @@ export default function DashboardClientsPage() {
         </div>
       </section>
 
+      {feedback ? (
+        <Alert variant={feedback.type === "error" ? "destructive" : "success"}>
+          {feedback.type === "error" ? <CircleAlert /> : <CircleCheck />}
+          <AlertTitle>{feedback.type === "error" ? "Falha no cadastro" : "Sucesso"}</AlertTitle>
+          <AlertDescription>{feedback.message}</AlertDescription>
+        </Alert>
+      ) : null}
+
       <ClientsKPIs />
 
-      <ClientsFilters />
+      <ClientsFilters onNewClientClick={() => setIsFormOpen(true)} />
 
       <ClientsTable />
+
+      <ClientForm
+        open={isFormOpen}
+        loading={isSubmitting}
+        feedback={feedback}
+        onClose={() => setIsFormOpen(false)}
+        onSubmitStart={() => {
+          setIsSubmitting(true)
+          setFeedback(null)
+        }}
+        onSubmitEnd={() => setIsSubmitting(false)}
+        onFeedback={setFeedback}
+      />
     </div>
   )
 }
