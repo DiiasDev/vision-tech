@@ -4,16 +4,17 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { clientsData } from "@/components/clients/mock-data"
+import type { ClientsListItem } from "@/services/clients.service"
 
 type ClientsFiltersProps = {
+  clients: ClientsListItem[]
   onNewClientClick?: () => void
 }
 
-export default function ClientsFilters({ onNewClientClick }: ClientsFiltersProps) {
-  const enterpriseCount = clientsData.filter((client) => client.plano === "Enterprise").length
-  const riskCount = clientsData.filter((client) => client.status === "Em risco" || client.status === "Inadimplente").length
-  const onboardingCount = clientsData.filter((client) => client.status === "Onboarding").length
+export default function ClientsFilters({ clients, onNewClientClick }: ClientsFiltersProps) {
+  const pjCount = clients.filter((client) => client.type === "PJ").length
+  const pfCount = clients.filter((client) => client.type === "PF").length
+  const riskCount = clients.filter((client) => client.status === "DELINQUENT").length
 
   return (
     <section className="space-y-4 rounded-2xl border border-border/70 bg-card/50 p-4 shadow-sm backdrop-blur-sm">
@@ -59,10 +60,10 @@ export default function ClientsFilters({ onNewClientClick }: ClientsFiltersProps
 
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
-          Enterprise: {enterpriseCount}
+          PJ: {pjCount}
         </Badge>
         <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
-          Onboarding: {onboardingCount}
+          PF: {pfCount}
         </Badge>
         <Badge variant="destructive" className="rounded-full px-3 py-1 text-xs">
           Em alerta: {riskCount}

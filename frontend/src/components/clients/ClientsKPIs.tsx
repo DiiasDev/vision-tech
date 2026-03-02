@@ -1,13 +1,17 @@
 import { ArrowUpRight, CircleAlert, HandCoins, UsersRound } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { clientsData } from "@/components/clients/mock-data"
+import type { ClientsListItem } from "@/services/clients.service"
 
-export default function ClientsKPIs() {
-  const total = clientsData.length
-  const ativos = clientsData.filter((client) => client.status === "Ativo").length
-  const inadimplentes = clientsData.filter((client) => client.status === "Inadimplente").length
-  const mrr = clientsData.reduce((acc, client) => acc + client.mrr, 0)
+type ClientsKPIsProps = {
+  clients: ClientsListItem[]
+}
+
+export default function ClientsKPIs({ clients }: ClientsKPIsProps) {
+  const total = clients.length
+  const ativos = clients.filter((client) => client.status === "ACTIVE").length
+  const inadimplentes = clients.filter((client) => client.status === "DELINQUENT").length
+  const semContato = clients.filter((client) => !client.lastContact).length
 
   const cards = [
     {
@@ -20,7 +24,7 @@ export default function ClientsKPIs() {
     {
       label: "Clientes Ativos",
       value: `${ativos}`,
-      helper: `${Math.round((ativos / total) * 100)}% da carteira`,
+      helper: total > 0 ? `${Math.round((ativos / total) * 100)}% da carteira` : "Sem clientes cadastrados",
       tone: "text-emerald-300",
       icon: ArrowUpRight,
     },
@@ -32,9 +36,9 @@ export default function ClientsKPIs() {
       icon: CircleAlert,
     },
     {
-      label: "MRR Consolidado",
-      value: `R$ ${mrr.toLocaleString("pt-BR")}`,
-      helper: "Receita recorrente mensal",
+      label: "Sem Contato",
+      value: `${semContato}`,
+      helper: "Sem ultimo contato registrado",
       tone: "text-amber-300",
       icon: HandCoins,
     },

@@ -37,11 +37,11 @@ export default function ClientsPage() {
         </Alert>
       ) : null}
 
-      <ClientsKPIs />
+      <ClientsKPIs clients={[]} />
 
-      <ClientsFilters onNewClientClick={() => setIsFormOpen(true)} />
+      <ClientsFilters clients={[]} onNewClientClick={() => setIsFormOpen(true)} />
 
-      <ClientsTable />
+      <ClientsTable clients={[]} />
 
       <ClientForm
         open={isFormOpen}

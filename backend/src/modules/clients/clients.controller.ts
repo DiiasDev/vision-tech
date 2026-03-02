@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Req,
+  UseGuards,
+  Get,
+  Param,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { ClientsService } from './clients.service';
 import { JwtAuthGuard } from '../auth/dto/guards/jwt-auth.guard';
@@ -22,5 +30,19 @@ export class ClientsController {
     const result = await this.clientsService.registerClient(body, currentUser);
 
     return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  async getClient(@Req() req: Request) {
+    const currentUser = req.user as AuthenticatedUser;
+    return await this.clientsService.getClients(currentUser);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  async getClientById(@Req() req: Request, @Param('id') id: string) {
+    const currentUser = req.user as AuthenticatedUser;
+    return await this.clientsService.getClientById(id, currentUser);
   }
 }

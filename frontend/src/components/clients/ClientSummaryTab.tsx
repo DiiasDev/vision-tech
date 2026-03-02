@@ -3,6 +3,7 @@ import { Building2, Mail, MapPin, Phone, UserRound } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { ClientDetails } from "@/components/clients/mock-data"
+import { formatCpfCnpj, formatPhoneBR } from "@/utils/Formatter"
 
 type ClientSummaryTabProps = {
   client: ClientDetails
@@ -44,7 +45,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
         <CardContent className="space-y-3 text-sm">
           <div className="flex items-start gap-2 text-muted-foreground">
             <Building2 className="mt-0.5 h-4 w-4" />
-            <span>{client.cnpjCpf}</span>
+            <span>{formatCpfCnpj(client.cnpjCpf)}</span>
           </div>
           <div className="flex items-start gap-2 text-muted-foreground">
             <UserRound className="mt-0.5 h-4 w-4" />
@@ -56,7 +57,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
           </div>
           <div className="flex items-start gap-2 text-muted-foreground">
             <Phone className="mt-0.5 h-4 w-4" />
-            <span>{client.telefone}</span>
+            <span>{formatPhoneBR(client.telefone)}</span>
           </div>
           <div className="flex items-start gap-2 text-muted-foreground">
             <MapPin className="mt-0.5 h-4 w-4" />

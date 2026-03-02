@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { ArrowUpRight, ChartNoAxesColumnIncreasing, CircleAlert, CircleCheck, Users } from "lucide-react"
 
 import ClientForm from "@/components/clients/clientForm"
@@ -10,16 +10,38 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import ClientsKPIs from "@/components/clients/ClientsKPIs"
 import ClientsFilters from "@/components/clients/ClientsFilters"
 import ClientsTable from "@/components/clients/ClientsTable"
-import { clientsData } from "@/components/clients/mock-data"
+import { getClients, type ClientsListItem } from "@/services/clients.service"
 
 export default function DashboardClientsPage() {
-  const mrr = clientsData.reduce((acc, client) => acc + client.mrr, 0)
+  const [clients, setClients] = useState<ClientsListItem[]>([])
+  const [isLoadingClients, setIsLoadingClients] = useState(true)
+  const [clientsError, setClientsError] = useState<string | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{
     type: "success" | "error"
     message: string
   } | null>(null)
+
+  const loadClients = useCallback(async () => {
+    setIsLoadingClients(true)
+    setClientsError(null)
+
+    try {
+      const response = await getClients()
+      setClients(response.data)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Nao foi possivel carregar os clientes."
+      setClientsError(message)
+      setClients([])
+    } finally {
+      setIsLoadingClients(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadClients()
+  }, [loadClients])
 
   return (
     <div className="space-y-6">
@@ -40,8 +62,8 @@ export default function DashboardClientsPage() {
 
           <div className="grid min-w-[260px] gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-300">MRR total</p>
-              <p className="mt-2 text-2xl font-semibold">R$ {mrr.toLocaleString("pt-BR")}</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Clientes totais</p>
+              <p className="mt-2 text-2xl font-semibold">{clients.length}</p>
             </div>
             <Button variant="secondary" className="rounded-xl border border-white/10 bg-white/10 text-slate-100 hover:bg-white/20">
               <ChartNoAxesColumnIncreasing className="h-4 w-4" />
@@ -78,11 +100,25 @@ export default function DashboardClientsPage() {
         </Alert>
       ) : null}
 
-      <ClientsKPIs />
+      {clientsError ? (
+        <Alert variant="destructive">
+          <CircleAlert />
+          <AlertTitle>Erro ao carregar clientes</AlertTitle>
+          <AlertDescription>{clientsError}</AlertDescription>
+        </Alert>
+      ) : null}
 
-      <ClientsFilters onNewClientClick={() => setIsFormOpen(true)} />
+      {isLoadingClients ? (
+        <section className="rounded-2xl border border-border/70 bg-card/40 p-6 text-sm text-muted-foreground">
+          Carregando clientes...
+        </section>
+      ) : null}
 
-      <ClientsTable />
+      <ClientsKPIs clients={clients} />
+
+      <ClientsFilters clients={clients} onNewClientClick={() => setIsFormOpen(true)} />
+
+      <ClientsTable clients={clients} />
 
       <ClientForm
         open={isFormOpen}
@@ -95,6 +131,9 @@ export default function DashboardClientsPage() {
         }}
         onSubmitEnd={() => setIsSubmitting(false)}
         onFeedback={setFeedback}
+        onCreated={() => {
+          void loadClients()
+        }}
       />
     </div>
   )

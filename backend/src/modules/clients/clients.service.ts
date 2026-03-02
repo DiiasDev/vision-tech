@@ -102,13 +102,21 @@ export class ClientsService {
           });
           break;
         } catch (error) {
-          if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-            const rawTarget = (error.meta as { target?: string[] | string | unknown })?.target;
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2002'
+          ) {
+            const rawTarget = (
+              error.meta as { target?: string[] | string | unknown }
+            )?.target;
             const target = Array.isArray(rawTarget)
               ? rawTarget.map((item) => String(item))
               : [String(rawTarget ?? '')];
 
-            if (target.includes('organizationId') && target.includes('document')) {
+            if (
+              target.includes('organizationId') &&
+              target.includes('document')
+            ) {
               return {
                 success: false,
                 message: 'Ja existe um cliente com esse documento.',
@@ -116,7 +124,11 @@ export class ClientsService {
               };
             }
 
-            if (target.includes('organizationId') && target.includes('code') && attempt < maxAttempts) {
+            if (
+              target.includes('organizationId') &&
+              target.includes('code') &&
+              attempt < maxAttempts
+            ) {
               continue;
             }
           }
@@ -128,7 +140,8 @@ export class ClientsService {
       if (!client) {
         return {
           success: false,
-          message: 'Nao foi possivel gerar um codigo unico para o cliente. Tente novamente.',
+          message:
+            'Nao foi possivel gerar um codigo unico para o cliente. Tente novamente.',
           data: null,
         };
       }
@@ -150,6 +163,63 @@ export class ClientsService {
       return {
         success: false,
         message: 'Erro ao registrar novo cliente.',
+        data: null,
+      };
+    }
+  }
+
+  async getClients(currentUser: { organizationId: string }) {
+    try {
+      const clients = await this.prisma.client.findMany({
+        where: {
+          organizationId: currentUser.organizationId,
+           deletedAt: null,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Clientes buscados com sucesso',
+        data: clients,
+      };
+    } catch (error: any) {
+      console.error('Erro ao buscar clientes', error);
+      return {
+        success: false,
+        message: 'Erro ao buscar clientes',
+        data: null,
+      };
+    }
+  }
+
+  async getClientById(id: string, currentUser: { organizationId: string }) {
+    try {
+      const client = await this.prisma.client.findFirst({
+        where: {
+          id,
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+        },
+      });
+
+      if (!client) {
+        return {
+          success: false,
+          message: 'Cliente nao encontrado',
+          data: null,
+        };
+      }
+
+      return {
+        success: true,
+        message: 'Cliente encontrado com sucesso',
+        data: client,
+      };
+    } catch (error: any) {
+      console.error('Erro ao buscar cliente', error);
+      return {
+        success: false,
+        message: 'Erro ao buscar cliente',
         data: null,
       };
     }

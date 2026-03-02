@@ -34,6 +34,45 @@ export type CreateClientResponse = {
   } | null
 }
 
+export type ApiClientStatus = "ACTIVE" | "INACTIVE" | "DELINQUENT"
+export type ApiClientType = "PF" | "PJ"
+
+export type ClientsListItem = {
+  id: string
+  code: string
+  type: ApiClientType
+  name: string
+  document: string
+  status: ApiClientStatus
+  lastContact?: string | null
+  email?: string | null
+  telephone?: string | null
+  responsibleName?: string | null
+  responsibleEmail?: string | null
+  responsiblePhone?: string | null
+  city?: string | null
+  state?: string | null
+  street?: string | null
+  number?: string | null
+  neighborhood?: string | null
+  zipCode?: string | null
+  responsibleUserId?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+type GetClientsResponse = {
+  success?: boolean
+  message?: string | string[]
+  data?: ClientsListItem[] | null
+}
+
+type GetClientByIdResponse = {
+  success?: boolean
+  message?: string | string[]
+  data?: ClientsListItem | null
+}
+
 function getApiMessage(payload: unknown, fallback: string) {
   if (!payload || typeof payload !== "object") return fallback
 
@@ -82,5 +121,87 @@ export async function createClient(payload: CreateClientPayload) {
   return {
     payload: clientPayload,
     message: getApiMessage(responsePayload, "Cliente cadastrado com sucesso."),
+  }
+}
+
+export async function getClients() {
+  const accessToken = getAccessToken()
+  if (!accessToken) {
+    throw new Error("Sua sessao expirou. Faca login novamente para carregar clientes.")
+  }
+
+  const response = await fetch(`${API_URL}/clients`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  let responsePayload: unknown = null
+  try {
+    responsePayload = await response.json()
+  } catch {
+    responsePayload = null
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthSession()
+      throw new Error("Sua sessao expirou. Faca login novamente para carregar clientes.")
+    }
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel carregar os clientes."))
+  }
+
+  const clientsPayload = responsePayload as GetClientsResponse | null
+  if (clientsPayload?.success === false) {
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel carregar os clientes."))
+  }
+
+  return {
+    payload: clientsPayload,
+    data: Array.isArray(clientsPayload?.data) ? clientsPayload.data : [],
+    message: getApiMessage(responsePayload, "Clientes buscados com sucesso."),
+  }
+}
+
+export async function getClientById(id: string) {
+  const accessToken = getAccessToken()
+  if (!accessToken) {
+    throw new Error("Sua sessao expirou. Faca login novamente para carregar o cliente.")
+  }
+
+  const response = await fetch(`${API_URL}/clients/${id}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  let responsePayload: unknown = null
+  try {
+    responsePayload = await response.json()
+  } catch {
+    responsePayload = null
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthSession()
+      throw new Error("Sua sessao expirou. Faca login novamente para carregar o cliente.")
+    }
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel carregar o cliente."))
+  }
+
+  const clientPayload = responsePayload as GetClientByIdResponse | null
+  if (clientPayload?.success === false || !clientPayload?.data) {
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel carregar o cliente."))
+  }
+
+  return {
+    payload: clientPayload,
+    data: clientPayload.data,
+    message: getApiMessage(responsePayload, "Cliente encontrado com sucesso."),
   }
 }

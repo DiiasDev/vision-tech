@@ -1,19 +1,44 @@
 import Link from "next/link"
-import { ArrowUpRight, Building2, CircleAlert, Clock3 } from "lucide-react"
+import { Building2, CircleAlert, Clock3 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { clientsData, type ClientStatus } from "@/components/clients/mock-data"
+import type { ClientsListItem } from "@/services/clients.service"
 
-function statusBadgeVariant(status: ClientStatus): "default" | "secondary" | "destructive" {
-  if (status === "Inadimplente") return "destructive"
-  if (status === "Ativo") return "default"
+function statusBadgeVariant(status: ClientsListItem["status"]): "default" | "secondary" | "destructive" {
+  if (status === "DELINQUENT") return "destructive"
+  if (status === "ACTIVE") return "default"
   return "secondary"
 }
 
-export default function ClientsTable() {
-  const atRisk = clientsData.filter((client) => client.status === "Em risco" || client.status === "Inadimplente").length
+function statusLabel(status: ClientsListItem["status"]) {
+  if (status === "ACTIVE") return "Ativo"
+  if (status === "DELINQUENT") return "Inadimplente"
+  return "Inativo"
+}
+
+function formatLastContact(value?: string | null) {
+  if (!value) return "Sem registro"
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "Sem registro"
+  return date.toLocaleString("pt-BR")
+}
+
+function formatLocation(city?: string | null, state?: string | null) {
+  if (city && state) return `${city}, ${state}`
+  if (city) return city
+  if (state) return state
+  return "Nao informado"
+}
+
+type ClientsTableProps = {
+  clients: ClientsListItem[]
+}
+
+export default function ClientsTable({ clients }: ClientsTableProps) {
+  const atRisk = clients.filter((client) => client.status === "DELINQUENT").length
 
   return (
     <Card className="overflow-hidden border-border/70 bg-card/70 shadow-lg">
@@ -34,21 +59,20 @@ export default function ClientsTable() {
 
       <CardContent className="px-0">
         <div className="overflow-x-auto">
-          <table className="min-w-[1040px] w-full text-sm">
+          <table className="min-w-[900px] w-full text-sm">
             <thead className="bg-muted/20 text-xs uppercase tracking-[0.14em] text-muted-foreground">
               <tr className="border-b border-border/70">
                 <th className="px-6 py-3 text-left font-medium">Cliente</th>
-                <th className="px-3 py-3 text-left font-medium">Segmento</th>
-                <th className="px-3 py-3 text-left font-medium">Plano</th>
+                <th className="px-3 py-3 text-left font-medium">Documento</th>
+                <th className="px-3 py-3 text-left font-medium">Tipo</th>
                 <th className="px-3 py-3 text-left font-medium">Status</th>
-                <th className="px-3 py-3 text-left font-medium">Saude</th>
-                <th className="px-3 py-3 text-left font-medium">MRR</th>
+                <th className="px-3 py-3 text-left font-medium">Cidade</th>
                 <th className="px-3 py-3 text-left font-medium">Ultimo contato</th>
                 <th className="px-3 py-3 text-right font-medium">Acoes</th>
               </tr>
             </thead>
             <tbody>
-              {clientsData.map((client) => (
+              {clients.map((client) => (
                 <tr key={client.id} className="border-b border-border/60 transition-colors hover:bg-muted/25">
                   <td className="px-6 py-4">
                     <div className="flex items-start gap-3">
@@ -56,62 +80,49 @@ export default function ClientsTable() {
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="font-medium text-foreground">{client.nome}</p>
-                        <p className="text-xs text-muted-foreground">{client.email}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{client.cidade}</p>
+                        <p className="font-medium text-foreground">{client.name}</p>
+                        <p className="text-xs text-muted-foreground">{client.email ?? "Sem email"}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{client.code}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-3 py-4">
-                    <p className="text-foreground">{client.segmento}</p>
-                    <p className="text-xs text-muted-foreground">{client.tipo}</p>
+                    <p className="text-foreground">{client.document}</p>
                   </td>
                   <td className="px-3 py-4">
                     <Badge variant="secondary" className="rounded-full px-2.5 py-1">
-                      {client.plano}
+                      {client.type}
                     </Badge>
                   </td>
                   <td className="px-3 py-4">
                     <Badge variant={statusBadgeVariant(client.status)} className="rounded-full px-2.5 py-1">
-                      {client.status}
+                      {statusLabel(client.status)}
                     </Badge>
-                    {client.inadimplenciaDias ? (
-                      <p className="mt-1 text-xs text-rose-300">{client.inadimplenciaDias} dias em atraso</p>
-                    ) : null}
                   </td>
                   <td className="px-3 py-4">
-                    <div className="space-y-1.5">
-                      <p className="text-xs font-medium text-foreground">{client.healthScore}%</p>
-                      <div className="h-1.5 w-28 rounded-full bg-muted">
-                        <div
-                          className="h-1.5 rounded-full bg-gradient-to-r from-sky-400 to-emerald-300"
-                          style={{ width: `${client.healthScore}%` }}
-                        />
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">Tickets abertos: {client.openTickets}</p>
-                    </div>
-                  </td>
-                  <td className="px-3 py-4">
-                    <p className="font-semibold text-foreground">R$ {client.mrr.toLocaleString("pt-BR")}</p>
-                    <p className="text-xs text-muted-foreground">LTV R$ {client.totalGasto.toLocaleString("pt-BR")}</p>
+                    <p className="text-foreground">{formatLocation(client.city, client.state)}</p>
                   </td>
                   <td className="px-3 py-4 text-muted-foreground">
                     <div className="flex items-center gap-1.5 text-xs">
                       <Clock3 className="h-3.5 w-3.5" />
-                      {client.ultimoContato}
+                      {formatLastContact(client.lastContact)}
                     </div>
-                    <p className="mt-1 max-w-[220px] truncate text-xs">{client.proximaAcao}</p>
+                    <p className="mt-1 max-w-[220px] truncate text-xs">{client.telephone ?? "Sem telefone"}</p>
                   </td>
                   <td className="px-3 py-4 text-right">
                     <Button asChild size="sm" className="rounded-lg">
-                      <Link href={`/dashboard/comercial/clientes/${client.id}`}>
-                        Abrir
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </Link>
+                      <Link href={`/dashboard/comercial/clientes/${client.id}`}>Abrir</Link>
                     </Button>
                   </td>
                 </tr>
               ))}
+              {clients.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-8 text-center text-sm text-muted-foreground">
+                    Nenhum cliente encontrado.
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
