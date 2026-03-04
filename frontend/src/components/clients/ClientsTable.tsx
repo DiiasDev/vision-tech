@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { ClientsListItem } from "@/services/clients.service"
+import { formatCpfCnpj, formatPhoneBR } from "@/utils/Formatter"
 
 function statusBadgeVariant(status: ClientsListItem["status"]): "default" | "secondary" | "destructive" {
   if (status === "DELINQUENT") return "destructive"
@@ -87,7 +88,7 @@ export default function ClientsTable({ clients }: ClientsTableProps) {
                     </div>
                   </td>
                   <td className="px-3 py-4">
-                    <p className="text-foreground">{client.document}</p>
+                    <p className="text-foreground">{formatCpfCnpj(client.document)}</p>
                   </td>
                   <td className="px-3 py-4">
                     <Badge variant="secondary" className="rounded-full px-2.5 py-1">
@@ -107,7 +108,9 @@ export default function ClientsTable({ clients }: ClientsTableProps) {
                       <Clock3 className="h-3.5 w-3.5" />
                       {formatLastContact(client.lastContact)}
                     </div>
-                    <p className="mt-1 max-w-[220px] truncate text-xs">{client.telephone ?? "Sem telefone"}</p>
+                    <p className="mt-1 max-w-[220px] truncate text-xs">
+                      {client.telephone ? formatPhoneBR(client.telephone) : "Sem telefone"}
+                    </p>
                   </td>
                   <td className="px-3 py-4 text-right">
                     <Button asChild size="sm" className="rounded-lg">
