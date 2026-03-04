@@ -78,7 +78,7 @@ const menu: MenuItem[] = [
     href: "/dashboard/produtos",
     icon: Package,
     subItems: [
-      { name: "Catalogo de Produtos", href: "/dashboard/produtos/catalogo" },
+      { name: "Catalogo de Produtos", href: "/products" },
       { name: "Estoque", href: "/dashboard/produtos/estoque" },
       { name: "Movimentacoes", href: "/dashboard/produtos/movimentacoes" },
       { name: "Fornecedores", href: "/dashboard/produtos/fornecedores" },

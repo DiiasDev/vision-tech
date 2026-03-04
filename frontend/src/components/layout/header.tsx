@@ -74,22 +74,31 @@ export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
   const { section, detail } = useMemo(() => {
     const segments = pathname.split("/").filter(Boolean)
     const dashboardIndex = segments.indexOf("dashboard")
+    const productsIndex = segments.indexOf("products")
 
-    if (dashboardIndex === -1) {
-      return { section: "Painel", detail: "" }
+    if (dashboardIndex !== -1) {
+      const sectionSegment = segments[dashboardIndex + 1]
+      const detailSegment = segments[dashboardIndex + 2]
+
+      if (!sectionSegment) {
+        return { section: "Dashboard", detail: "Visao geral da operacao" }
+      }
+
+      return {
+        section: humanizeSegment(sectionSegment),
+        detail: detailSegment ? humanizeSegment(detailSegment) : "",
+      }
     }
 
-    const sectionSegment = segments[dashboardIndex + 1]
-    const detailSegment = segments[dashboardIndex + 2]
-
-    if (!sectionSegment) {
-      return { section: "Dashboard", detail: "Visao geral da operacao" }
+    if (productsIndex !== -1) {
+      const productsDetail = segments[productsIndex + 1]
+      if (productsDetail === "id") {
+        return { section: "Produtos", detail: "Configuracao detalhada de produto" }
+      }
+      return { section: "Produtos", detail: "Catalogo de produtos e servicos" }
     }
 
-    return {
-      section: humanizeSegment(sectionSegment),
-      detail: detailSegment ? humanizeSegment(detailSegment) : "",
-    }
+    return { section: "Painel", detail: "" }
   }, [pathname])
 
   useEffect(() => {
