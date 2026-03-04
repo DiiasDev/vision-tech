@@ -5,19 +5,15 @@ import { CalendarClock, Factory, PackageCheck, Settings, ShoppingBag, Tag, Trash
 import { Product } from "@/components/products/productsMock"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
+import { formatPriceOrCostBR } from "@/utils/Formatter"
 
 type Props = {
   product: Product
   onDelete: (productId: string) => void
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 0,
-  }).format(value)
+  isSelected: boolean
+  onToggleSelection: (productId: string, checked: boolean) => void
 }
 
 function formatDate(value: string) {
@@ -28,7 +24,7 @@ function formatDate(value: string) {
   }).format(new Date(value))
 }
 
-export function ProductCard({ product, onDelete }: Props) {
+export function ProductCard({ product, onDelete, isSelected, onToggleSelection }: Props) {
   const statusConfig = {
     active: {
       label: "Ativo",
@@ -51,8 +47,33 @@ export function ProductCard({ product, onDelete }: Props) {
   const status = statusConfig[product.status]
 
   return (
-    <article className="group relative overflow-hidden rounded-3xl border border-border/70 bg-card/95 p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-2xl lg:p-5">
+    <article
+      className={cn(
+        "group relative overflow-hidden rounded-3xl border bg-card/95 p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-2xl lg:p-5",
+        isSelected
+          ? "border-primary/55 ring-2 ring-primary/20 shadow-lg shadow-primary/10"
+          : "border-border/70"
+      )}
+    >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-primary/12 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+      <div
+        className={cn(
+          "absolute left-3 top-3 z-20 rounded-xl border bg-background/95 p-1.5 shadow-md backdrop-blur-sm transition-all",
+          isSelected ? "border-primary/45" : "border-border/80"
+        )}
+      >
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={(checked) => onToggleSelection(product.id, Boolean(checked))}
+          aria-label={`Selecionar ${product.name}`}
+          className={cn(
+            "size-5 rounded-md border-2",
+            isSelected
+              ? "border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+              : "border-border"
+          )}
+        />
+      </div>
 
       <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-muted/35 to-muted/5 p-3">
         <div className="absolute right-3 top-3 z-10 rounded-full border border-primary/25 bg-background/85 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
@@ -96,7 +117,7 @@ export function ProductCard({ product, onDelete }: Props) {
         <div className="grid grid-cols-2 gap-2.5 text-sm">
           <div className="rounded-xl border bg-muted/30 p-3">
             <p className="text-xs text-muted-foreground">Preço</p>
-            <p className="mt-1 text-base font-semibold">{formatCurrency(product.price)}</p>
+            <p className="mt-1 text-base font-semibold">{formatPriceOrCostBR(product.price)}</p>
           </div>
           <div className="rounded-xl border bg-muted/30 p-3">
             <p className="text-xs text-muted-foreground">Estoque</p>

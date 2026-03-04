@@ -1,17 +1,10 @@
 import { AlertTriangle, Boxes, ChartNoAxesColumnIncreasing, FilePenLine } from "lucide-react"
 
 import { Product } from "@/components/products/productsMock"
+import { formatPriceOrCostBR } from "@/utils/Formatter"
 
 type Props = {
   products: Product[]
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 0,
-  }).format(value)
 }
 
 export function CatalogStats({ products }: Props) {
@@ -33,7 +26,7 @@ export function CatalogStats({ products }: Props) {
     },
     {
       title: "Valor em Estoque",
-      value: formatCurrency(inventoryValue),
+      value: formatPriceOrCostBR(inventoryValue),
       hint: "Capital disponível para venda",
       icon: ChartNoAxesColumnIncreasing,
       color: "text-emerald-600",

@@ -37,7 +37,7 @@ export function CatalogHeader() {
 
           <Button type="button" className="h-11 rounded-xl px-5 text-sm shadow-sm">
             <Plus className="h-4 w-4" />
-            + Adicionar Produto
+            Adicionar Produto
           </Button>
         </div>
       </div>

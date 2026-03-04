@@ -4,9 +4,11 @@ import { ProductCard } from "./ProductCard"
 type Props = {
   products: Product[]
   onDelete: (productId: string) => void
+  selectedProductIds: Set<string>
+  onToggleSelection: (productId: string, checked: boolean) => void
 }
 
-export function ProductGrid({ products, onDelete }: Props) {
+export function ProductGrid({ products, onDelete, selectedProductIds, onToggleSelection }: Props) {
   if (!products.length) {
     return (
       <section className="rounded-3xl border border-dashed border-border/80 bg-card/60 px-6 py-16 text-center">
@@ -25,6 +27,8 @@ export function ProductGrid({ products, onDelete }: Props) {
           key={product.id}
           product={product}
           onDelete={onDelete}
+          isSelected={selectedProductIds.has(product.id)}
+          onToggleSelection={onToggleSelection}
         />
       ))}
     </section>
