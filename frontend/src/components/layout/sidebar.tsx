@@ -8,6 +8,7 @@ import {
   BriefcaseBusiness,
   Building2,
   ChevronDown,
+  ClipboardList,
   DollarSign,
   FolderKanban,
   LayoutDashboard,
@@ -49,8 +50,17 @@ const menu: MenuItem[] = [
     subItems: [
       { name: "Clientes", href: "/dashboard/comercial/clientes" },
       { name: "Orcamentos", href: "/dashboard/comercial/orcamentos" },
-      { name: "Propostas", href: "/dashboard/comercial/propostas" },
       { name: "Contratos", href: "/dashboard/comercial/contratos" },
+    ],
+  },
+  {
+    name: "Pedidos",
+    href: "/dashboard/pedidos",
+    icon: ClipboardList,
+    subItems: [
+      { name: "Lista de pedidos", href: "/dashboard/pedidos/lista" },
+      { name: "Entregas", href: "/dashboard/pedidos/entregas" },
+      { name: "Historicos", href: "/dashboard/pedidos/historicos" },
     ],
   },
   {

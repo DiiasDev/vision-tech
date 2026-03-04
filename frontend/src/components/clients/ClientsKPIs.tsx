@@ -19,6 +19,7 @@ export default function ClientsKPIs({ clients }: ClientsKPIsProps) {
       value: `${total}`,
       helper: "Base ativa + onboarding",
       tone: "text-sky-300",
+      iconTone: "text-sky-200",
       icon: UsersRound,
     },
     {
@@ -26,6 +27,7 @@ export default function ClientsKPIs({ clients }: ClientsKPIsProps) {
       value: `${ativos}`,
       helper: total > 0 ? `${Math.round((ativos / total) * 100)}% da carteira` : "Sem clientes cadastrados",
       tone: "text-emerald-300",
+      iconTone: "text-emerald-200",
       icon: ArrowUpRight,
     },
     {
@@ -33,6 +35,7 @@ export default function ClientsKPIs({ clients }: ClientsKPIsProps) {
       value: `${inadimplentes}`,
       helper: "Monitorar risco financeiro",
       tone: "text-rose-300",
+      iconTone: "text-rose-200",
       icon: CircleAlert,
     },
     {
@@ -40,6 +43,7 @@ export default function ClientsKPIs({ clients }: ClientsKPIsProps) {
       value: `${semContato}`,
       helper: "Sem ultimo contato registrado",
       tone: "text-amber-300",
+      iconTone: "text-amber-200",
       icon: HandCoins,
     },
   ]
@@ -61,8 +65,8 @@ export default function ClientsKPIs({ clients }: ClientsKPIsProps) {
                 </CardDescription>
                 <CardTitle className={`mt-3 text-3xl font-semibold tracking-tight ${card.tone}`}>{card.value}</CardTitle>
               </div>
-              <div className="rounded-lg border border-border/70 bg-muted/35 p-2">
-                <Icon className="h-4 w-4 text-muted-foreground" />
+              <div className="rounded-lg border border-border/70 bg-muted/45 p-2.5">
+                <Icon className={`h-5 w-5 stroke-[2.2] ${card.iconTone}`} />
               </div>
             </CardHeader>
             <CardContent className="pt-0 text-sm text-muted-foreground">{card.helper}</CardContent>
