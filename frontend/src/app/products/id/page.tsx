@@ -15,7 +15,7 @@ import {
   User,
 } from "lucide-react"
 
-import { productsMock, type ProductStatus } from "@/components/products/productsMock"
+import { productCategoryOptions, productsMock, type ProductStatus } from "@/components/products/productsMock"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -127,11 +127,18 @@ export default function ProductDetailsPage() {
             </Field>
 
             <Field label="Categoria" id="category">
-              <Input
+              <select
                 id="category"
                 value={form.category}
                 onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
-              />
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+              >
+                {productCategoryOptions.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
             </Field>
 
             <Field label="Marca" id="brand">

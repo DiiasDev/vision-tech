@@ -1,5 +1,15 @@
 export type ProductStatus = "active" | "inactive" | "out_of_stock"
 
+export const productCategoryOptions = [
+  "Hardware",
+  "Software",
+  "Serviços",
+  "Periféricos",
+  "Licenças",
+  "Infraestrutura",
+  "Outros",
+] as const
+
 export type Product = {
   id: string
   code: string
@@ -28,7 +38,7 @@ export const productsMock: Product[] = [
     code: "PROD-001",
     name: "Notebook Dell Inspiron 15",
     description: "Notebook para uso corporativo com excelente desempenho.",
-    category: "Computadores",
+    category: "Hardware",
     price: 4200,
     stock: 12,
     minStock: 8,
@@ -49,7 +59,7 @@ export const productsMock: Product[] = [
     code: "PROD-002",
     name: "SSD Kingston 1TB",
     description: "Armazenamento rápido para upgrades de máquinas.",
-    category: "Armazenamento",
+    category: "Hardware",
     price: 520,
     stock: 35,
     minStock: 15,
