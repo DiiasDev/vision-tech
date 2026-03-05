@@ -29,6 +29,22 @@ enum ClientStatus {
   DELINQUENT
 }
 
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  OUT_OF_STOCK
+}
+
+enum ProductCategory {
+  HARDWARE
+  SOFTWARE
+  SERVICES
+  PERIPHERALS
+  LICENSES
+  INFRASTRUCTURE
+  OTHERS
+}
+
 model Organization {
   id        String              @id @default(uuid())
   name      String
@@ -41,6 +57,7 @@ model Organization {
   users     UserOrganization[]
   roles     Role[]
   clients   Client[]
+  products  Product[]
 }
 
 model User {
@@ -56,6 +73,7 @@ model User {
 
   clientsCreated      Client[] @relation("ClientCreatedBy")
   clientsResponsible  Client[] @relation("ClientResponsible")
+  productsCreated     Product[] @relation("ProductCreatedByUser")
 }
 
 model UserOrganization {
@@ -157,4 +175,53 @@ model Client {
 
   @@unique([organizationId, code])
   @@unique([organizationId, document])
+}
+
+model Product {
+  id              String          @id @default(uuid())
+
+  /*
+   * Código no padrão PROD-XXXX.
+   * O comprimento fica fixo em 9 caracteres (ex: PROD-0001).
+   * Para validação exata por regex, adicione CHECK em migration SQL.
+   */
+  code            String          @db.VarChar(9)
+
+  organizationId  String
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name            String
+  description     String
+  category        ProductCategory
+
+  price           Decimal         @db.Decimal(12, 2)
+  cost            Decimal?        @db.Decimal(12, 2)
+  stock           Int             @default(0)
+  minStock        Int             @default(0)
+  unitOfMeasure   String
+  location        String
+  percentage      Decimal         @db.Decimal(5, 2)
+
+  status          ProductStatus   @default(ACTIVE)
+
+  createdBy       String
+  createdById     String?
+  createdByUser   User?           @relation("ProductCreatedByUser", fields: [createdById], references: [id])
+
+  brand           String
+  supplier        String
+  monthlySales    Int             @default(0)
+  imageUrl        String?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  @@index([organizationId])
+  @@index([createdById])
+  @@index([status])
+  @@index([category])
+  @@index([organizationId, status])
+
+  @@unique([organizationId, code])
 }

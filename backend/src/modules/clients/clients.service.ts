@@ -173,7 +173,7 @@ export class ClientsService {
       const clients = await this.prisma.client.findMany({
         where: {
           organizationId: currentUser.organizationId,
-           deletedAt: null,
+          deletedAt: null,
         },
       });
 

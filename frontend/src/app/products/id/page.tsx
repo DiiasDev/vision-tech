@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation"
 import {
   ArrowLeft,
   Box,
+  CircleDollarSign,
   Factory,
   PackageCheck,
   Save,
@@ -21,6 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { formatPriceOrCostBR } from "@/utils/Formatter"
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -45,6 +47,7 @@ export default function ProductDetailsPage() {
     category: selectedProduct?.category ?? "",
     description: selectedProduct?.description ?? "",
     price: selectedProduct?.price ?? 0,
+    cost: selectedProduct?.cost ?? 0,
     stock: selectedProduct?.stock ?? 0,
     minStock: selectedProduct?.minStock ?? 0,
     status: selectedProduct?.status ?? ("inactive" as ProductStatus),
@@ -168,6 +171,16 @@ export default function ProductDetailsPage() {
                 min={0}
                 value={form.price}
                 onChange={(event) => setForm((prev) => ({ ...prev, price: Number(event.target.value) }))}
+              />
+            </Field>
+
+            <Field label="Custo" id="cost">
+              <Input
+                id="cost"
+                type="number"
+                min={0}
+                value={form.cost}
+                onChange={(event) => setForm((prev) => ({ ...prev, cost: Number(event.target.value) }))}
               />
             </Field>
 
@@ -299,6 +312,8 @@ export default function ProductDetailsPage() {
             <h2 className="mt-1 text-xl font-semibold">Resumo Rápido</h2>
 
             <div className="mt-4 grid gap-2 text-sm">
+              <Stat icon={CircleDollarSign} label="Preço" value={formatPriceOrCostBR(form.price)} />
+              <Stat icon={CircleDollarSign} label="Custo" value={formatPriceOrCostBR(form.cost)} />
               <Stat icon={Factory} label="Fornecedor" value={form.supplier} />
               <Stat icon={TrendingUp} label="Vendas/mês" value={`${form.monthlySales}`} />
               <Stat icon={PackageCheck} label="Estoque mínimo" value={`${form.minStock} ${form.unitOfMeasure}`} />

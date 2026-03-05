@@ -17,6 +17,7 @@ export type Product = {
   description: string
   category: string
   price: number
+  cost: number
   stock: number
   minStock: number
   unitOfMeasure: string
@@ -40,6 +41,7 @@ export const productsMock: Product[] = [
     description: "Notebook para uso corporativo com excelente desempenho.",
     category: "Hardware",
     price: 4200,
+    cost: 3150,
     stock: 12,
     minStock: 8,
     unitOfMeasure: "un",
@@ -61,6 +63,7 @@ export const productsMock: Product[] = [
     description: "Armazenamento rápido para upgrades de máquinas.",
     category: "Hardware",
     price: 520,
+    cost: 360,
     stock: 35,
     minStock: 15,
     unitOfMeasure: "un",
@@ -82,6 +85,7 @@ export const productsMock: Product[] = [
     description: "Memória para upgrades e manutenção de computadores.",
     category: "Hardware",
     price: 320,
+    cost: 210,
     stock: 20,
     minStock: 12,
     unitOfMeasure: "un",
@@ -103,6 +107,7 @@ export const productsMock: Product[] = [
     description: "Serviço de formatação e instalação de sistema operacional.",
     category: "Serviços",
     price: 150,
+    cost: 70,
     stock: 999,
     minStock: 100,
     unitOfMeasure: "serviço",
@@ -124,6 +129,7 @@ export const productsMock: Product[] = [
     description: "Serviço de limpeza e troca de pasta térmica.",
     category: "Serviços",
     price: 120,
+    cost: 55,
     stock: 0,
     minStock: 100,
     unitOfMeasure: "serviço",

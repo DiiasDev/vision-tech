@@ -114,10 +114,14 @@ export function ProductCard({ product, onDelete, isSelected, onToggleSelection }
           <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{product.description}</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5 text-sm">
+        <div className="grid grid-cols-1 gap-2.5 text-sm sm:grid-cols-3">
           <div className="rounded-xl border bg-muted/30 p-3">
             <p className="text-xs text-muted-foreground">Preço</p>
             <p className="mt-1 text-base font-semibold">{formatPriceOrCostBR(product.price)}</p>
+          </div>
+          <div className="rounded-xl border bg-muted/30 p-3">
+            <p className="text-xs text-muted-foreground">Custo</p>
+            <p className="mt-1 text-base font-semibold">{formatPriceOrCostBR(product.cost)}</p>
           </div>
           <div className="rounded-xl border bg-muted/30 p-3">
             <p className="text-xs text-muted-foreground">Estoque</p>

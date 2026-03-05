@@ -2,7 +2,11 @@ import { Package, Plus, Sparkles } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 
-export function CatalogHeader() {
+type CatalogHeaderProps = {
+  onAddProduct?: () => void
+}
+
+export function CatalogHeader({ onAddProduct }: CatalogHeaderProps) {
   return (
     <section className="relative w-full overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/12 via-card to-accent/10 p-6 shadow-sm md:p-7">
       <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
@@ -35,7 +39,7 @@ export function CatalogHeader() {
             <p>Atualizado em tempo real</p>
           </div>
 
-          <Button type="button" className="h-11 rounded-xl px-5 text-sm shadow-sm">
+          <Button type="button" className="h-11 rounded-xl px-5 text-sm shadow-sm" onClick={onAddProduct}>
             <Plus className="h-4 w-4" />
             Adicionar Produto
           </Button>

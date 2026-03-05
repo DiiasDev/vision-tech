@@ -30,6 +30,7 @@ const IMPORT_HEADERS = [
   "description",
   "category",
   "price",
+  "cost",
   "stock",
   "minStock",
   "unitOfMeasure",
@@ -53,6 +54,7 @@ const headerLabels: Record<ImportHeader, string> = {
   description: "Descrição",
   category: "Categoria",
   price: "Preço",
+  cost: "Custo",
   stock: "Estoque",
   minStock: "Estoque mínimo",
   unitOfMeasure: "Unidade de medida",
@@ -140,6 +142,7 @@ export function ProductSpreadsheetActions({
         description: "Monitor para setup profissional com alta produtividade.",
         category: "Monitores",
         price: 2890,
+        cost: 2010,
         stock: 18,
         minStock: 6,
         unitOfMeasure: "un",
@@ -160,6 +163,7 @@ export function ProductSpreadsheetActions({
         description: "Teclado para escritório com switches silenciosos.",
         category: "Periféricos",
         price: 490,
+        cost: 290,
         stock: 42,
         minStock: 10,
         unitOfMeasure: "un",
@@ -178,12 +182,13 @@ export function ProductSpreadsheetActions({
 
     const workbook = XLSX.utils.book_new()
     const modelSheet = XLSX.utils.json_to_sheet(sample, { header: [...IMPORT_HEADERS] })
-    modelSheet["!autofilter"] = { ref: "A1:R1" }
+    modelSheet["!autofilter"] = { ref: "A1:S1" }
     modelSheet["!cols"] = [
       { wch: 14 },
       { wch: 28 },
       { wch: 52 },
       { wch: 16 },
+      { wch: 12 },
       { wch: 12 },
       { wch: 10 },
       { wch: 14 },
@@ -206,7 +211,7 @@ export function ProductSpreadsheetActions({
       ["1. Mantenha os nomes das colunas exatamente iguais ao modelo."],
       ["2. Status permitido: Ativo, Inativo, Sem estoque."],
       ["3. Datas devem estar no formato YYYY-MM-DD."],
-      ["4. price, stock, minStock, percentage e monthlySales devem ser numéricos."],
+      ["4. price, cost, stock, minStock, percentage e monthlySales devem ser numéricos."],
       ["5. imageUrl é opcional. Se vazio, será usado /product.png."],
       ["6. Cada linha representa um produto."],
       [""],
@@ -288,13 +293,14 @@ export function ProductSpreadsheetActions({
         }
 
         const price = Number(row.price)
+        const cost = Number(row.cost)
         const stock = Number(row.stock)
         const minStock = Number(row.minStock)
         const percentage = Number(row.percentage)
         const monthlySales = Number(row.monthlySales)
 
-        if ([price, stock, minStock, percentage, monthlySales].some((value) => Number.isNaN(value))) {
-          errors.push(`Linha ${line}: campos numéricos inválidos (price/stock/minStock/percentage/monthlySales).`)
+        if ([price, cost, stock, minStock, percentage, monthlySales].some((value) => Number.isNaN(value))) {
+          errors.push(`Linha ${line}: campos numéricos inválidos (price/cost/stock/minStock/percentage/monthlySales).`)
           return
         }
 
@@ -316,6 +322,7 @@ export function ProductSpreadsheetActions({
           description: String(row.description).trim(),
           category: String(row.category).trim(),
           price,
+          cost,
           stock,
           minStock,
           unitOfMeasure: String(row.unitOfMeasure).trim(),
@@ -367,6 +374,7 @@ export function ProductSpreadsheetActions({
         categoria: product.category,
         status: statusToSheet(product.status),
         preco: product.price,
+        custo: product.cost,
         estoque: product.stock,
         unidade: product.unitOfMeasure,
         estoque_minimo: product.minStock,
@@ -382,12 +390,13 @@ export function ProductSpreadsheetActions({
 
       const workbook = XLSX.utils.book_new()
       const sheet = XLSX.utils.json_to_sheet(rows)
-      sheet["!autofilter"] = { ref: "A1:P1" }
+      sheet["!autofilter"] = { ref: "A1:Q1" }
       sheet["!cols"] = [
         { wch: 14 },
         { wch: 28 },
         { wch: 16 },
         { wch: 14 },
+        { wch: 12 },
         { wch: 12 },
         { wch: 10 },
         { wch: 12 },
