@@ -35,6 +35,45 @@ type GetProductCodesResponse = {
   data?: string[] | null
 }
 
+export type ApiProductStatus = "ACTIVE" | "INACTIVE" | "OUT_OF_STOCK"
+export type ApiProductCategory =
+  | "HARDWARE"
+  | "SOFTWARE"
+  | "SERVICES"
+  | "PERIPHERALS"
+  | "LICENSES"
+  | "INFRASTRUCTURE"
+  | "OTHERS"
+
+export type ProductsListItem = {
+  id: string
+  code: string
+  name: string
+  description: string
+  category: ApiProductCategory
+  price: string
+  cost?: string | null
+  stock: number
+  minStock: number
+  unitOfMeasure: string
+  location: string
+  percentage: string
+  status: ApiProductStatus
+  createdAt: string
+  updatedAt: string
+  createdBy: string
+  brand: string
+  supplier: string
+  monthlySales: number
+  imageUrl?: string | null
+}
+
+type GetProductsResponse = {
+  success?: boolean
+  message?: string | string[]
+  data?: ProductsListItem[] | null
+}
+
 function getApiMessage(payload: unknown, fallback: string) {
   if (!payload || typeof payload !== "object") return fallback
 
@@ -125,5 +164,47 @@ export async function getProductCodes() {
     payload,
     data: Array.isArray(payload?.data) ? payload.data : [],
     message: getApiMessage(responsePayload, "Codigos de produtos carregados com sucesso."),
+  }
+}
+
+export async function getProducts() {
+  const accessToken = getAccessToken()
+  if (!accessToken) {
+    throw new Error("Sua sessao expirou. Faca login novamente para carregar os produtos.")
+  }
+
+  const response = await fetch(`${API_URL}/products`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    cache: "no-store",
+  })
+
+  let responsePayload: unknown = null
+  try {
+    responsePayload = await response.json()
+  } catch {
+    responsePayload = null
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthSession()
+      throw new Error("Sua sessao expirou. Faca login novamente para carregar os produtos.")
+    }
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel carregar os produtos."))
+  }
+
+  const payload = responsePayload as GetProductsResponse | null
+  if (payload?.success === false) {
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel carregar os produtos."))
+  }
+
+  return {
+    payload,
+    data: Array.isArray(payload?.data) ? payload.data : [],
+    message: getApiMessage(responsePayload, "Produtos carregados com sucesso."),
   }
 }

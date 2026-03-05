@@ -17,6 +17,20 @@ type Props = {
 }
 
 function formatDate(value: string) {
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (dateOnlyMatch) {
+    const year = Number.parseInt(dateOnlyMatch[1], 10)
+    const month = Number.parseInt(dateOnlyMatch[2], 10)
+    const day = Number.parseInt(dateOnlyMatch[3], 10)
+    const localDate = new Date(year, month - 1, day, 12, 0, 0)
+
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(localDate)
+  }
+
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "short",

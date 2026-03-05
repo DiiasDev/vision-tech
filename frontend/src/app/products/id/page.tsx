@@ -2,21 +2,29 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import {
   ArrowLeft,
   Box,
   CircleDollarSign,
   Factory,
+  ImagePlus,
   PackageCheck,
   Save,
   Tag,
   TrendingUp,
   User,
+  X,
 } from "lucide-react"
 
-import { productCategoryOptions, productsMock, type ProductStatus } from "@/components/products/productsMock"
+import {
+  productCategoryOptions,
+  productsMock,
+  type Product,
+  type ProductStatus,
+} from "@/components/products/productsMock"
+import { type ProductsListItem, getProducts } from "@/services/products.service"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +33,20 @@ import { Textarea } from "@/components/ui/textarea"
 import { formatPriceOrCostBR } from "@/utils/Formatter"
 
 function formatDate(value: string) {
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (dateOnlyMatch) {
+    const year = Number.parseInt(dateOnlyMatch[1], 10)
+    const month = Number.parseInt(dateOnlyMatch[2], 10)
+    const day = Number.parseInt(dateOnlyMatch[3], 10)
+    const localDate = new Date(year, month - 1, day, 12, 0, 0)
+
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    }).format(localDate)
+  }
+
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "long",
@@ -32,34 +54,162 @@ function formatDate(value: string) {
   }).format(new Date(value))
 }
 
+function mapApiStatusToUi(status: ProductsListItem["status"]): Product["status"] {
+  if (status === "INACTIVE") return "inactive"
+  if (status === "OUT_OF_STOCK") return "out_of_stock"
+  return "active"
+}
+
+function mapApiCategoryToUi(category: ProductsListItem["category"]) {
+  const categoryMap: Record<ProductsListItem["category"], string> = {
+    HARDWARE: "Hardware",
+    SOFTWARE: "Software",
+    SERVICES: "Serviços",
+    PERIPHERALS: "Periféricos",
+    LICENSES: "Licenças",
+    INFRASTRUCTURE: "Infraestrutura",
+    OTHERS: "Outros",
+  }
+
+  return categoryMap[category] ?? category
+}
+
+function mapApiProductToUi(product: ProductsListItem): Product {
+  return {
+    id: product.id,
+    code: product.code,
+    name: product.name,
+    description: product.description ?? "",
+    category: mapApiCategoryToUi(product.category),
+    price: Number.parseFloat(product.price) || 0,
+    cost: Number.parseFloat(product.cost ?? "0") || 0,
+    stock: product.stock ?? 0,
+    minStock: product.minStock ?? 0,
+    unitOfMeasure: product.unitOfMeasure ?? "",
+    location: product.location ?? "",
+    percentage: Number.parseFloat(product.percentage) || 0,
+    status: mapApiStatusToUi(product.status),
+    createdAt: product.createdAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+    updatedAt: product.updatedAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+    createdBy: product.createdBy ?? "Usuario",
+    brand: product.brand ?? "",
+    supplier: product.supplier ?? "",
+    monthlySales: product.monthlySales ?? 0,
+    imageUrl: product.imageUrl ?? "/product.png",
+  }
+}
+
+function toFormState(product: Product) {
+  return {
+    code: product.code,
+    name: product.name,
+    category: product.category,
+    description: product.description,
+    price: product.price,
+    cost: product.cost,
+    stock: product.stock,
+    minStock: product.minStock,
+    status: product.status,
+    imageUrl: product.imageUrl ?? "",
+    supplier: product.supplier,
+    brand: product.brand,
+    monthlySales: product.monthlySales,
+    unitOfMeasure: product.unitOfMeasure,
+    location: product.location,
+    percentage: product.percentage,
+    createdBy: product.createdBy,
+  }
+}
+
 export default function ProductDetailsPage() {
   const searchParams = useSearchParams()
   const productId = searchParams.get("productId")
+  const [isLoading, setIsLoading] = useState(true)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [form, setForm] = useState({
+    code: "",
+    name: "",
+    category: "",
+    description: "",
+    price: 0,
+    cost: 0,
+    stock: 0,
+    minStock: 0,
+    status: "inactive" as ProductStatus,
+    imageUrl: "",
+    supplier: "",
+    brand: "",
+    monthlySales: 0,
+    unitOfMeasure: "",
+    location: "",
+    percentage: 0,
+    createdBy: "",
+  })
+  const [showImageUpload, setShowImageUpload] = useState(false)
 
-  const selectedProduct = useMemo(
-    () => productsMock.find((product) => product.id === productId),
-    [productId]
-  )
+  function handleImageFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file || !file.type.startsWith("image/")) return
 
-  const [form, setForm] = useState(() => ({
-    code: selectedProduct?.code ?? "",
-    name: selectedProduct?.name ?? "",
-    category: selectedProduct?.category ?? "",
-    description: selectedProduct?.description ?? "",
-    price: selectedProduct?.price ?? 0,
-    cost: selectedProduct?.cost ?? 0,
-    stock: selectedProduct?.stock ?? 0,
-    minStock: selectedProduct?.minStock ?? 0,
-    status: selectedProduct?.status ?? ("inactive" as ProductStatus),
-    imageUrl: selectedProduct?.imageUrl ?? "",
-    supplier: selectedProduct?.supplier ?? "",
-    brand: selectedProduct?.brand ?? "",
-    monthlySales: selectedProduct?.monthlySales ?? 0,
-    unitOfMeasure: selectedProduct?.unitOfMeasure ?? "",
-    location: selectedProduct?.location ?? "",
-    percentage: selectedProduct?.percentage ?? 0,
-    createdBy: selectedProduct?.createdBy ?? "",
-  }))
+    const reader = new FileReader()
+    reader.onload = () => {
+      const imageResult = typeof reader.result === "string" ? reader.result : ""
+      if (!imageResult) return
+      setForm((prev) => ({ ...prev, imageUrl: imageResult }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadProduct() {
+      if (!productId) {
+        if (mounted) {
+          setSelectedProduct(null)
+          setIsLoading(false)
+        }
+        return
+      }
+
+      setIsLoading(true)
+
+      try {
+        const response = await getProducts()
+        const productFromApi = response.data.map(mapApiProductToUi).find((product) => product.id === productId)
+        if (mounted) {
+          setSelectedProduct(productFromApi ?? productsMock.find((product) => product.id === productId) ?? null)
+        }
+      } catch {
+        if (mounted) {
+          setSelectedProduct(productsMock.find((product) => product.id === productId) ?? null)
+        }
+      } finally {
+        if (mounted) setIsLoading(false)
+      }
+    }
+
+    void loadProduct()
+
+    return () => {
+      mounted = false
+    }
+  }, [productId])
+
+  useEffect(() => {
+    if (!selectedProduct) return
+    setForm(toFormState(selectedProduct))
+    setShowImageUpload(false)
+  }, [selectedProduct])
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border bg-card p-8">
+        <h1 className="text-2xl font-semibold">Carregando produto...</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Buscando os dados detalhados para edição.</p>
+      </div>
+    )
+  }
 
   if (!selectedProduct) {
     return (
@@ -284,14 +434,24 @@ export default function ProductDetailsPage() {
                 </select>
               </Field>
 
-              <Field label="URL da imagem" id="imageUrl">
-                <Input
-                  id="imageUrl"
-                  placeholder="/product.png"
-                  value={form.imageUrl}
-                  onChange={(event) => setForm((prev) => ({ ...prev, imageUrl: event.target.value }))}
-                />
-              </Field>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Imagem atual do produto</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowImageUpload((prev) => !prev)}
+                >
+                  {showImageUpload ? <X className="h-4 w-4" /> : <ImagePlus className="h-4 w-4" />}
+                  {showImageUpload ? "Cancelar troca" : "Trocar imagem"}
+                </Button>
+              </div>
+
+              {showImageUpload ? (
+                <Field label="Anexar imagem" id="imageFile">
+                  <Input id="imageFile" type="file" accept="image/*" onChange={handleImageFileChange} />
+                </Field>
+              ) : null}
 
               <div className="relative overflow-hidden rounded-2xl border bg-muted/20 p-3">
                 <div className="relative h-56 overflow-hidden rounded-xl bg-gradient-to-br from-background to-muted/35">

@@ -32,4 +32,11 @@ export class productsController {
 
     return result;
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  async getProducts(@Req() req: Request) {
+    const currentUser = req.user as AuthenticatedUser;
+    return this.productsServices.getProducts(currentUser);
+  }
 }

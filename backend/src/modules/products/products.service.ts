@@ -170,4 +170,28 @@ export class ProductsServices {
       };
     }
   }
+
+  async getProducts(currentUser: { organizationId: string }) {
+    try {
+      const products = await this.prisma.product.findMany({
+        where: {
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Sucesso ao buscar produtos.',
+        data: products,
+      };
+    } catch (error: any) {
+      console.error('Erro ao buscar produtos', error);
+      return {
+        success: false,
+        message: 'Erro ao buscar produtos',
+        data: {},
+      };
+    }
+  }
 }
