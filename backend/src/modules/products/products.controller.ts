@@ -1,4 +1,13 @@
-import { Controller, Post, Body, Req, UseGuards, Get } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Req,
+  UseGuards,
+  Get,
+  Delete,
+  Param,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { ProductsServices } from './products.service';
 import { JwtAuthGuard } from '../auth/dto/guards/jwt-auth.guard';
@@ -38,5 +47,15 @@ export class productsController {
   async getProducts(@Req() req: Request) {
     const currentUser = req.user as AuthenticatedUser;
     return this.productsServices.getProducts(currentUser);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':productId')
+  async deleteProduct(
+    @Req() req: Request,
+    @Param('productId') productId: string,
+  ) {
+    const currentUser = req.user as AuthenticatedUser;
+    return this.productsServices.deleteProduct(productId, currentUser);
   }
 }

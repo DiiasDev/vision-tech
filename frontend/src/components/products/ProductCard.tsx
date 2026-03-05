@@ -16,6 +16,7 @@ import {
   TrendingUp,
   User,
   XCircle,
+  Loader2,
 } from "lucide-react"
 
 import { Product } from "@/components/products/productsMock"
@@ -28,6 +29,7 @@ import { formatPriceOrCostBR } from "@/utils/Formatter"
 type Props = {
   product: Product
   onDelete: (productId: string) => void
+  isDeleting: boolean
   isSelected: boolean
   onToggleSelection: (productId: string, checked: boolean) => void
 }
@@ -108,7 +110,7 @@ function createMockSales(product: Product): MockSale[] {
   })
 }
 
-export function ProductCard({ product, onDelete, isSelected, onToggleSelection }: Props) {
+export function ProductCard({ product, onDelete, isDeleting, isSelected, onToggleSelection }: Props) {
   const [isSalesHistoryOpen, setIsSalesHistoryOpen] = useState(false)
   const statusConfig = {
     active: {
@@ -295,12 +297,13 @@ export function ProductCard({ product, onDelete, isSelected, onToggleSelection }
               type="button"
               variant="outline"
               size="icon"
-              className="h-11 w-11 rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-              aria-label={`Excluir ${product.name}`}
-              onClick={() => onDelete(product.id)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            className="h-11 w-11 rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+            aria-label={`Excluir ${product.name}`}
+            disabled={isDeleting}
+            onClick={() => onDelete(product.id)}
+          >
+            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+          </Button>
 
             <Button
               type="button"

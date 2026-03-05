@@ -194,4 +194,45 @@ export class ProductsServices {
       };
     }
   }
+
+  async deleteProduct(
+    productId: string,
+    currentUser: { organizationId: string },
+  ) {
+    try {
+      const deletionResult = await this.prisma.product.updateMany({
+        where: {
+          id: productId,
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+        },
+        data: {
+          deletedAt: new Date(),
+        },
+      });
+
+      if (deletionResult.count === 0) {
+        return {
+          success: false,
+          message: 'Produto nao encontrado para exclusao.',
+          data: null,
+        };
+      }
+
+      return {
+        success: true,
+        message: 'Produto deletado com sucesso',
+        data: {
+          id: productId,
+        },
+      };
+    } catch (error: any) {
+      console.error('Erro ao deletar produto:', error);
+      return {
+        success: false,
+        message: 'Nao foi possivel deletar o produto.',
+        data: null,
+      };
+    }
+  }
 }

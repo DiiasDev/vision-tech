@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 
 import { AlertComponent, ComponentAlert, type ComponentAlertState } from "@/components/layout/AlertComponent"
 import { type Product } from "@/components/products/productsMock"
-import { getProductCodes, getProducts, type ProductsListItem } from "@/services/products.service"
+import { deleteProduct, getProductCodes, getProducts, type ProductsListItem } from "@/services/products.service"
 
 import { CatalogHeader } from "@/components/products/CatalogHeader"
 import { FormProducts } from "@/components/products/FormProducts"
@@ -66,6 +66,7 @@ export default function ProductsCatalogPage() {
   const [showProductForm, setShowProductForm] = useState(false)
   const [feedback, setFeedback] = useState<ComponentAlertState | null>(null)
   const [productCodes, setProductCodes] = useState<string[]>([])
+  const [deletingProductIds, setDeletingProductIds] = useState<Set<string>>(new Set())
 
   async function refreshProducts() {
     try {
@@ -115,13 +116,43 @@ export default function ProductsCatalogPage() {
     return matchesSearch && product.status === statusFilter
   })
 
-  function handleDeleteProduct(productId: string) {
+  function removeProductFromState(productId: string) {
     setProducts((prev) => prev.filter((product) => product.id !== productId))
     setSelectedProductIds((prev) => {
       const next = new Set(prev)
       next.delete(productId)
       return next
     })
+  }
+
+  async function handleDeleteProductRequest(productId: string) {
+    setFeedback(ComponentAlert.Info("Excluindo produto..."))
+
+    setDeletingProductIds((prev) => {
+      const next = new Set(prev)
+      next.add(productId)
+      return next
+    })
+
+    try {
+      const result = await deleteProduct(productId)
+      removeProductFromState(productId)
+      setFeedback(ComponentAlert.Success(result.message || "Produto excluido com sucesso."))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Nao foi possivel excluir o produto."
+      setFeedback(ComponentAlert.Error(message))
+    } finally {
+      setDeletingProductIds((prev) => {
+        const next = new Set(prev)
+        next.delete(productId)
+        return next
+      })
+    }
+  }
+
+  function handleDeleteProduct(productId: string) {
+    if (deletingProductIds.has(productId)) return
+    void handleDeleteProductRequest(productId)
   }
 
   function handleToggleSelection(productId: string, checked: boolean) {
@@ -184,6 +215,7 @@ export default function ProductsCatalogPage() {
         <ProductGrid
           products={filteredProducts}
           onDelete={handleDeleteProduct}
+          deletingProductIds={deletingProductIds}
           selectedProductIds={selectedProductIds}
           onToggleSelection={handleToggleSelection}
         />

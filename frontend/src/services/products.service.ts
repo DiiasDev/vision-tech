@@ -74,6 +74,14 @@ type GetProductsResponse = {
   data?: ProductsListItem[] | null
 }
 
+type DeleteProductResponse = {
+  success?: boolean
+  message?: string | string[]
+  data?: {
+    id: string
+  } | null
+}
+
 function getApiMessage(payload: unknown, fallback: string) {
   if (!payload || typeof payload !== "object") return fallback
 
@@ -206,5 +214,45 @@ export async function getProducts() {
     payload,
     data: Array.isArray(payload?.data) ? payload.data : [],
     message: getApiMessage(responsePayload, "Produtos carregados com sucesso."),
+  }
+}
+
+export async function deleteProduct(productId: string) {
+  const accessToken = getAccessToken()
+  if (!accessToken) {
+    throw new Error("Sua sessao expirou. Faca login novamente para excluir produtos.")
+  }
+
+  const response = await fetch(`${API_URL}/products/${productId}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  let responsePayload: unknown = null
+  try {
+    responsePayload = await response.json()
+  } catch {
+    responsePayload = null
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthSession()
+      throw new Error("Sua sessao expirou. Faca login novamente para excluir produtos.")
+    }
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel excluir o produto."))
+  }
+
+  const payload = responsePayload as DeleteProductResponse | null
+  if (payload?.success === false) {
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel excluir o produto."))
+  }
+
+  return {
+    payload,
+    message: getApiMessage(responsePayload, "Produto excluido com sucesso."),
   }
 }
