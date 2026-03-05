@@ -20,6 +20,24 @@ export type CreateProductPayload = {
   imageUrl?: string
 }
 
+export type UpdateProductPayload = Partial<{
+  name: string
+  description: string
+  category: ApiProductCategory
+  price: string
+  cost: string
+  stock: number
+  minStock: number
+  unitOfMeasure: string
+  location: string
+  percentage: string
+  status: ApiProductStatus
+  brand: string
+  supplier: string
+  monthlySales: number
+  imageUrl: string
+}>
+
 type CreateProductResponse = {
   success?: boolean
   message?: string | string[]
@@ -80,6 +98,12 @@ type DeleteProductResponse = {
   data?: {
     id: string
   } | null
+}
+
+type UpdateProductResponse = {
+  success?: boolean
+  message?: string | string[]
+  data?: ProductsListItem | null
 }
 
 function getApiMessage(payload: unknown, fallback: string) {
@@ -254,5 +278,47 @@ export async function deleteProduct(productId: string) {
   return {
     payload,
     message: getApiMessage(responsePayload, "Produto excluido com sucesso."),
+  }
+}
+
+export async function updateProduct(productId: string, payload: UpdateProductPayload) {
+  const accessToken = getAccessToken()
+  if (!accessToken) {
+    throw new Error("Sua sessao expirou. Faca login novamente para atualizar produtos.")
+  }
+
+  const response = await fetch(`${API_URL}/products/${productId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  })
+
+  let responsePayload: unknown = null
+  try {
+    responsePayload = await response.json()
+  } catch {
+    responsePayload = null
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthSession()
+      throw new Error("Sua sessao expirou. Faca login novamente para atualizar produtos.")
+    }
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel atualizar o produto."))
+  }
+
+  const dataPayload = responsePayload as UpdateProductResponse | null
+  if (dataPayload?.success === false) {
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel atualizar o produto."))
+  }
+
+  return {
+    payload: dataPayload,
+    data: dataPayload?.data ?? null,
+    message: getApiMessage(responsePayload, "Produto atualizado com sucesso."),
   }
 }

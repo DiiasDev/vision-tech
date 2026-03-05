@@ -20,6 +20,24 @@ export type CreateProductDto = {
   imageUrl?: string;
 };
 
+export type UpdateProductDto = Partial<{
+  name: string;
+  description: string;
+  category: ProductCategory;
+  price: string | number;
+  cost: string | number | null;
+  stock: number;
+  minStock: number;
+  unitOfMeasure: string;
+  location: string;
+  percentage: string | number;
+  status: ProductStatus;
+  brand: string;
+  supplier: string;
+  monthlySales: number;
+  imageUrl: string | null;
+}>;
+
 type AuthenticatedUser = {
   userId: string;
   organizationId: string;
@@ -231,6 +249,64 @@ export class ProductsServices {
       return {
         success: false,
         message: 'Nao foi possivel deletar o produto.',
+        data: null,
+      };
+    }
+  }
+
+  async updateProduct(
+    productId: string,
+    currentUser: { organizationId: string },
+    values: UpdateProductDto,
+  ) {
+    try {
+      const data = Object.fromEntries(
+        Object.entries(values).filter(([, value]) => value !== undefined),
+      ) as Prisma.ProductUpdateManyMutationInput;
+
+      if (Object.keys(data).length === 0) {
+        return {
+          success: false,
+          message: 'Nenhum campo valido foi informado para atualizacao.',
+          data: null,
+        };
+      }
+
+      const updateResult = await this.prisma.product.updateMany({
+        where: {
+          id: productId,
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+        },
+        data,
+      });
+
+      if (updateResult.count === 0) {
+        return {
+          success: false,
+          message: 'Produto nao encontrado para atualizacao.',
+          data: null,
+        };
+      }
+
+      const productUpdate = await this.prisma.product.findFirst({
+        where: {
+          id: productId,
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Produto atualizado com sucesso.',
+        data: productUpdate,
+      };
+    } catch (error: any) {
+      console.error('Erro ao atualizar produto: ', error);
+      return {
+        success: false,
+        message: 'Nao foi possivel atualizar o produto.',
         data: null,
       };
     }

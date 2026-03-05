@@ -10,6 +10,7 @@ import {
   CircleDollarSign,
   Factory,
   ImagePlus,
+  Loader2,
   PackageCheck,
   Save,
   Tag,
@@ -24,7 +25,8 @@ import {
   type Product,
   type ProductStatus,
 } from "@/components/products/productsMock"
-import { type ProductsListItem, getProducts } from "@/services/products.service"
+import { AlertComponent, ComponentAlert, type ComponentAlertState } from "@/components/layout/AlertComponent"
+import { type ProductsListItem, getProducts, updateProduct } from "@/services/products.service"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -99,6 +101,27 @@ function mapApiProductToUi(product: ProductsListItem): Product {
   }
 }
 
+function mapUiStatusToApi(status: ProductStatus): ProductsListItem["status"] {
+  if (status === "inactive") return "INACTIVE"
+  if (status === "out_of_stock") return "OUT_OF_STOCK"
+  return "ACTIVE"
+}
+
+function mapUiCategoryToApi(category: string): ProductsListItem["category"] {
+  const normalized = category.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  const categoryMap: Record<string, ProductsListItem["category"]> = {
+    hardware: "HARDWARE",
+    software: "SOFTWARE",
+    servicos: "SERVICES",
+    perifericos: "PERIPHERALS",
+    licencas: "LICENSES",
+    infraestrutura: "INFRASTRUCTURE",
+    outros: "OTHERS",
+  }
+
+  return categoryMap[normalized] ?? "OTHERS"
+}
+
 function toFormState(product: Product) {
   return {
     code: product.code,
@@ -146,6 +169,8 @@ export default function ProductDetailsPage() {
     createdBy: "",
   })
   const [showImageUpload, setShowImageUpload] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [feedback, setFeedback] = useState<ComponentAlertState | null>(null)
 
   function handleImageFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -202,6 +227,59 @@ export default function ProductDetailsPage() {
     setShowImageUpload(false)
   }, [selectedProduct])
 
+  async function handleSaveChanges() {
+    if (!productId) {
+      setFeedback(ComponentAlert.Error("Produto nao encontrado para atualizacao."))
+      return
+    }
+
+    setIsSaving(true)
+    setFeedback(ComponentAlert.Info("Salvando alteracoes do produto..."))
+
+    try {
+      const result = await updateProduct(productId, {
+        name: form.name.trim(),
+        description: form.description.trim(),
+        category: mapUiCategoryToApi(form.category),
+        price: String(form.price),
+        cost: String(form.cost),
+        stock: form.stock,
+        minStock: form.minStock,
+        unitOfMeasure: form.unitOfMeasure.trim(),
+        location: form.location.trim(),
+        percentage: String(form.percentage),
+        status: mapUiStatusToApi(form.status),
+        brand: form.brand.trim(),
+        supplier: form.supplier.trim(),
+        monthlySales: form.monthlySales,
+        imageUrl: form.imageUrl.trim(),
+      })
+
+      if (result.data) {
+        const updatedProduct = mapApiProductToUi(result.data)
+        setSelectedProduct(updatedProduct)
+      } else {
+        setSelectedProduct((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...form,
+                imageUrl: form.imageUrl || "/product.png",
+              }
+            : prev
+        )
+      }
+
+      setFeedback(ComponentAlert.Success(result.message || "Produto atualizado com sucesso."))
+      setShowImageUpload(false)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Nao foi possivel atualizar o produto."
+      setFeedback(ComponentAlert.Error(message))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="rounded-2xl border bg-card p-8">
@@ -227,6 +305,8 @@ export default function ProductDetailsPage() {
 
   return (
     <div className="space-y-6 pb-6">
+      <AlertComponent alert={feedback} onClose={() => setFeedback(null)} />
+
       <section className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-accent/10 p-5 shadow-sm md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
@@ -249,9 +329,9 @@ export default function ProductDetailsPage() {
             <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
               {form.code}
             </Badge>
-            <Button className="h-10 rounded-xl px-4">
-              <Save className="h-4 w-4" />
-              Salvar alterações
+            <Button className="h-10 rounded-xl px-4" onClick={() => void handleSaveChanges()} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {isSaving ? "Salvando..." : "Salvar alterações"}
             </Button>
           </div>
         </div>

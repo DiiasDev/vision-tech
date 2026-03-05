@@ -7,11 +7,15 @@ import {
   Get,
   Delete,
   Param,
+  Patch,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { ProductsServices } from './products.service';
 import { JwtAuthGuard } from '../auth/dto/guards/jwt-auth.guard';
-import { type CreateProductDto } from './products.service';
+import {
+  type CreateProductDto,
+  type UpdateProductDto,
+} from './products.service';
 
 interface AuthenticatedUser {
   userId: string;
@@ -57,5 +61,16 @@ export class productsController {
   ) {
     const currentUser = req.user as AuthenticatedUser;
     return this.productsServices.deleteProduct(productId, currentUser);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':productId')
+  async updateProduct(
+    @Req() req: Request,
+    @Param('productId') productId: string,
+    @Body() body: UpdateProductDto,
+  ) {
+    const currentUser = req.user as AuthenticatedUser;
+    return this.productsServices.updateProduct(productId, currentUser, body);
   }
 }
