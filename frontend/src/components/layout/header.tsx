@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 
 import { HeaderNotifications } from "@/components/layout/header-notifications"
 import { mockHeaderUser, mockNotifications, mockSystemStatus } from "@/components/layout/header-mocks"
@@ -45,6 +45,7 @@ function humanizeSegment(segment: string) {
 
 export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [fetchedHeaderUser, setFetchedHeaderUser] = useState<typeof mockHeaderUser | null>(null)
   const storedHeaderUserRaw = useSyncExternalStore(
     (onStoreChange) => {
@@ -140,6 +141,12 @@ export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
     }
   }, [])
 
+  function handleLogout() {
+    clearAuthSession()
+    setFetchedHeaderUser(null)
+    router.replace("/auth/login")
+  }
+
   return (
     <header className="sticky top-0 z-20 border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-md md:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-3 md:flex-row md:items-center md:gap-4">
@@ -171,7 +178,7 @@ export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
           <HeaderSystemStatus status={mockSystemStatus} />
           <HeaderNotifications notifications={mockNotifications} />
           <ThemeToggle />
-          <HeaderUserProfile user={headerUser} />
+          <HeaderUserProfile user={headerUser} onLogout={handleLogout} />
         </div>
 
         <div className="md:hidden">
