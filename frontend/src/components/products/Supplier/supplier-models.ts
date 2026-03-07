@@ -1,76 +1,55 @@
-export type SupplierSegment = "eletronicos" | "infraestrutura" | "insumos" | "embalagem" | "servicos"
-export type SupplierStatus = "ativo" | "avaliacao" | "suspenso"
-export type SupplierRiskLevel = "baixo" | "medio" | "alto"
-
 export type Supplier = {
   id: string
+  code: string
   name: string
-  tradeName: string
-  segment: SupplierSegment
-  status: SupplierStatus
-  riskLevel: SupplierRiskLevel
-  leadTimeDays: number
-  onTimeRate: number
-  qualityScore: number
-  annualSpend: number
-  paymentTerm: string
-  minimumOrderValue: number
-  activeContracts: number
-  categories: string[]
-  contactName: string
-  contactEmail: string
-  contactPhone: string
+  fantasyName: string
+  segment: string
+  risk: string
+  contact?: string
   city: string
   state: string
-  lastDeliveryAt: string
-  nextReviewAt: string
+  status: string
+  categories: string
+  lead?: string
+  location: string
+  phone: string
+  email: string
+  minRequest: string
+  lastDelivery: string
 }
 
 export type SupplierFilters = {
   search: string
-  segment: SupplierSegment | "all"
-  status: SupplierStatus | "all"
-  risk: SupplierRiskLevel | "all"
+  segment: string | "all"
+  status: string | "all"
+  risk: string | "all"
 }
 
 export type SupplierSummary = {
   totalSuppliers: number
   activeSuppliers: number
   highRiskSuppliers: number
-  averageLeadTime: number
-  averageOnTimeRate: number
-  averageQualityScore: number
-  totalAnnualSpend: number
-}
-
-export const supplierSegmentLabels: Record<SupplierSegment, string> = {
-  eletronicos: "Eletronicos",
-  infraestrutura: "Infraestrutura",
-  insumos: "Insumos",
-  embalagem: "Embalagem",
-  servicos: "Servicos",
-}
-
-export const supplierStatusLabels: Record<SupplierStatus, string> = {
-  ativo: "Ativo",
-  avaliacao: "Em avaliacao",
-  suspenso: "Suspenso",
-}
-
-export const supplierRiskLabels: Record<SupplierRiskLevel, string> = {
-  baixo: "Risco baixo",
-  medio: "Risco medio",
-  alto: "Risco alto",
-}
-
-const riskPriority: Record<SupplierRiskLevel, number> = {
-  alto: 0,
-  medio: 1,
-  baixo: 2,
+  averageLeadDays: number
 }
 
 function normalize(value: string) {
   return value.trim().toLocaleLowerCase("pt-BR")
+}
+
+function parseLeadDays(lead?: string) {
+  if (!lead?.trim()) return 0
+  const numericMatch = lead.replace(",", ".").match(/\d+(\.\d+)?/)
+  if (!numericMatch) return 0
+  const parsedValue = Number.parseFloat(numericMatch[0])
+  return Number.isFinite(parsedValue) ? parsedValue : 0
+}
+
+export function getRiskSortValue(risk: string) {
+  const normalizedRisk = normalize(risk)
+  if (normalizedRisk === "alto") return 0
+  if (normalizedRisk === "medio") return 1
+  if (normalizedRisk === "baixo") return 2
+  return 3
 }
 
 export function filterSuppliers(suppliers: Supplier[], filters: SupplierFilters) {
@@ -85,7 +64,7 @@ export function filterSuppliers(suppliers: Supplier[], filters: SupplierFilters)
       return false
     }
 
-    if (filters.risk !== "all" && supplier.riskLevel !== filters.risk) {
+    if (filters.risk !== "all" && supplier.risk !== filters.risk) {
       return false
     }
 
@@ -94,55 +73,41 @@ export function filterSuppliers(suppliers: Supplier[], filters: SupplierFilters)
     }
 
     const searchableParts = [
+      supplier.code,
       supplier.name,
-      supplier.tradeName,
-      supplier.contactName,
+      supplier.fantasyName,
+      supplier.segment,
+      supplier.risk,
+      supplier.contact ?? "",
       supplier.city,
       supplier.state,
-      supplier.categories.join(" "),
+      supplier.status,
+      supplier.categories,
+      supplier.lead ?? "",
+      supplier.location,
+      supplier.phone,
+      supplier.email,
+      supplier.minRequest,
+      supplier.lastDelivery,
     ]
 
     return searchableParts.join(" ").toLocaleLowerCase("pt-BR").includes(normalizedSearch)
   })
 }
 
-function average(values: number[]) {
-  if (values.length === 0) return 0
-  return values.reduce((total, value) => total + value, 0) / values.length
-}
-
-export function getRiskSortValue(riskLevel: SupplierRiskLevel) {
-  return riskPriority[riskLevel]
-}
-
 export function calculateSupplierSummary(suppliers: Supplier[]): SupplierSummary {
   const totalSuppliers = suppliers.length
-  const activeSuppliers = suppliers.filter((supplier) => supplier.status === "ativo").length
-  const highRiskSuppliers = suppliers.filter((supplier) => supplier.riskLevel === "alto").length
+  const activeSuppliers = suppliers.filter((supplier) => normalize(supplier.status) === "ativo").length
+  const highRiskSuppliers = suppliers.filter((supplier) => normalize(supplier.risk) === "alto").length
+
+  const leadValues = suppliers.map((supplier) => parseLeadDays(supplier.lead)).filter((value) => value > 0)
+  const averageLeadDays =
+    leadValues.length > 0 ? leadValues.reduce((total, value) => total + value, 0) / leadValues.length : 0
 
   return {
     totalSuppliers,
     activeSuppliers,
     highRiskSuppliers,
-    averageLeadTime: average(suppliers.map((supplier) => supplier.leadTimeDays)),
-    averageOnTimeRate: average(suppliers.map((supplier) => supplier.onTimeRate)),
-    averageQualityScore: average(suppliers.map((supplier) => supplier.qualityScore)),
-    totalAnnualSpend: suppliers.reduce((total, supplier) => total + supplier.annualSpend, 0),
+    averageLeadDays,
   }
-}
-
-export function formatPercent(value: number) {
-  return `${new Intl.NumberFormat("pt-BR", {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  }).format(value)}%`
-}
-
-export function formatCompactCurrency(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value)
 }

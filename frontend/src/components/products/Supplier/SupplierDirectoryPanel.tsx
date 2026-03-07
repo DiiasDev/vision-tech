@@ -1,15 +1,7 @@
 import type { ComponentType } from "react"
-import { Building2, Clock3, Mail, MapPin, Phone, Settings2, Trash2 } from "lucide-react"
+import { Building2, Clock3, Mail, MapPin, Phone, Settings2, Trash2, UserRound } from "lucide-react"
 
-import {
-  getRiskSortValue,
-  supplierRiskLabels,
-  supplierSegmentLabels,
-  supplierStatusLabels,
-  type Supplier,
-  type SupplierRiskLevel,
-  type SupplierStatus,
-} from "@/components/products/Supplier/supplier-models"
+import { getRiskSortValue, type Supplier } from "@/components/products/Supplier/supplier-models"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,16 +15,22 @@ type SupplierDirectoryPanelProps = {
   onDeleteSupplier: (supplierId: string) => void
 }
 
-const riskStyles: Record<SupplierRiskLevel, string> = {
-  baixo: "border-emerald-300/60 bg-emerald-100/65 text-emerald-700",
-  medio: "border-amber-300/60 bg-amber-100/65 text-amber-700",
-  alto: "border-red-300/60 bg-red-100/65 text-red-700",
+function normalizeValue(value: string) {
+  return value.trim().toLocaleLowerCase("pt-BR")
 }
 
-const statusStyles: Record<SupplierStatus, string> = {
-  ativo: "border-sky-300/60 bg-sky-100/65 text-sky-700",
-  avaliacao: "border-violet-300/60 bg-violet-100/65 text-violet-700",
-  suspenso: "border-slate-300/60 bg-slate-200/75 text-slate-700",
+function buildRiskStyle(risk: string) {
+  const normalizedRisk = normalizeValue(risk)
+  if (normalizedRisk === "alto") return "border-red-300/60 bg-red-100/65 text-red-700"
+  if (normalizedRisk === "medio") return "border-amber-300/60 bg-amber-100/65 text-amber-700"
+  return "border-emerald-300/60 bg-emerald-100/65 text-emerald-700"
+}
+
+function buildStatusStyle(status: string) {
+  const normalizedStatus = normalizeValue(status)
+  if (normalizedStatus === "ativo") return "border-sky-300/60 bg-sky-100/65 text-sky-700"
+  if (normalizedStatus === "avaliacao") return "border-violet-300/60 bg-violet-100/65 text-violet-700"
+  return "border-slate-300/60 bg-slate-200/75 text-slate-700"
 }
 
 export function SupplierDirectoryPanel({
@@ -43,8 +41,8 @@ export function SupplierDirectoryPanel({
   onDeleteSupplier,
 }: SupplierDirectoryPanelProps) {
   const sortedSuppliers = [...suppliers].sort((left, right) => {
-    if (getRiskSortValue(left.riskLevel) !== getRiskSortValue(right.riskLevel)) {
-      return getRiskSortValue(left.riskLevel) - getRiskSortValue(right.riskLevel)
+    if (getRiskSortValue(left.risk) !== getRiskSortValue(right.risk)) {
+      return getRiskSortValue(left.risk) - getRiskSortValue(right.risk)
     }
 
     return left.name.localeCompare(right.name, "pt-BR")
@@ -54,7 +52,7 @@ export function SupplierDirectoryPanel({
     <Card className="border-border/70 bg-card/80 py-0">
       <CardHeader className="border-b border-border/70 py-4">
         <CardTitle className="text-base">Dados dos fornecedores</CardTitle>
-        <CardDescription>Lista simples com informacoes principais. Clique em um item para selecionar.</CardDescription>
+        <CardDescription>Lista dos fornecedores com os campos padrao de cadastro.</CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4 p-4">
@@ -87,33 +85,33 @@ export function SupplierDirectoryPanel({
                     <p className="text-base font-semibold">{supplier.name}</p>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {supplier.tradeName} - {supplierSegmentLabels[supplier.segment]}
+                    {supplier.code} - {supplier.fantasyName} - {supplier.segment}
                   </p>
 
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {supplier.categories.map((category) => (
-                      <Badge key={category} variant="outline" className="rounded-full border-border/70 bg-muted/20">
-                        {category}
-                      </Badge>
-                    ))}
+                    <Badge variant="outline" className="rounded-full border-border/70 bg-muted/20">
+                      {supplier.categories}
+                    </Badge>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <Badge className={cn("rounded-full border px-2.5 py-1 text-[11px]", statusStyles[supplier.status])}>
-                    {supplierStatusLabels[supplier.status]}
+                  <Badge className={cn("rounded-full border px-2.5 py-1 text-[11px]", buildStatusStyle(supplier.status))}>
+                    {supplier.status}
                   </Badge>
-                  <Badge className={cn("rounded-full border px-2.5 py-1 text-[11px]", riskStyles[supplier.riskLevel])}>
-                    {supplierRiskLabels[supplier.riskLevel]}
+                  <Badge className={cn("rounded-full border px-2.5 py-1 text-[11px]", buildRiskStyle(supplier.risk))}>
+                    Risco {supplier.risk}
                   </Badge>
                 </div>
               </header>
 
-              <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 xl:grid-cols-3">
-                <InfoLine icon={Clock3} text={`Lead time medio: ${supplier.leadTimeDays} dias`} />
+              <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
+                <InfoLine icon={Clock3} text={`Lead: ${supplier.lead || "-"}`} />
                 <InfoLine icon={MapPin} text={`${supplier.city} - ${supplier.state}`} />
-                <InfoLine icon={Phone} text={supplier.contactPhone} />
-                <InfoLine icon={Mail} text={supplier.contactEmail} />
+                <InfoLine icon={MapPin} text={`Local: ${supplier.location}`} />
+                <InfoLine icon={Phone} text={supplier.phone} />
+                <InfoLine icon={Mail} text={supplier.email} />
+                <InfoLine icon={UserRound} text={supplier.contact || "-"} />
               </div>
 
               <div className="flex items-center gap-2 pt-1">

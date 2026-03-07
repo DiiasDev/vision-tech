@@ -6,6 +6,7 @@ import Image from "next/image"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,7 +22,18 @@ type GenericFieldOption = {
 export type GenericField = {
   name: string
   label: string
-  type: "text" | "email" | "tel" | "number" | "date" | "datetime-local" | "datetime" | "select" | "textarea" | "file"
+  type:
+    | "text"
+    | "email"
+    | "tel"
+    | "number"
+    | "date"
+    | "datetime-local"
+    | "datetime"
+    | "select"
+    | "multiselect"
+    | "textarea"
+    | "file"
   placeholder?: string
   required?: boolean
   readOnly?: boolean
@@ -90,6 +102,14 @@ function buildSections(fields: GenericField[]) {
   }
 
   return Array.from(sections.values())
+}
+
+function parseMultiSelectValue(value: string | undefined) {
+  if (!value?.trim()) return []
+  return value
+    .split("|")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
 }
 
 export default function FormComponent({
@@ -173,6 +193,15 @@ export default function FormComponent({
 
     const file = event.dataTransfer.files?.[0] ?? null
     handleFileChange(fieldName, file)
+  }
+
+  function handleMultiSelectToggle(fieldName: string, optionValue: string, checked: boolean) {
+    const currentValues = parseMultiSelectValue(values[fieldName])
+    const nextValues = checked
+      ? Array.from(new Set([...currentValues, optionValue]))
+      : currentValues.filter((item) => item !== optionValue)
+
+    handleValueChange(fieldName, nextValues.join("|"))
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -286,6 +315,59 @@ export default function FormComponent({
                               ))}
                             </SelectContent>
                           </Select>
+                        ) : field.type === "multiselect" ? (
+                          <div
+                            className={cn(
+                              "space-y-3 rounded-xl border border-border bg-background/95 p-3",
+                              (field.readOnly || field.autoFilled) && "border-border/90 bg-muted/85",
+                              fieldError && "border-destructive/70"
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs text-muted-foreground">
+                                {parseMultiSelectValue(values[field.name]).length > 0
+                                  ? `${parseMultiSelectValue(values[field.name]).length} selecionada(s)`
+                                  : (field.placeholder ?? "Selecione uma ou mais opcoes")}
+                              </p>
+                              {parseMultiSelectValue(values[field.name]).length > 0 ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => handleValueChange(field.name, "")}
+                                  disabled={loading || field.disabled || field.readOnly}
+                                >
+                                  Limpar
+                                </Button>
+                              ) : null}
+                            </div>
+
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {field.options?.map((option) => {
+                                const isChecked = parseMultiSelectValue(values[field.name]).includes(option.value)
+
+                                return (
+                                  <label
+                                    key={option.value}
+                                    className={cn(
+                                      "flex items-center gap-2 rounded-lg border border-border/70 bg-card px-2.5 py-2 text-sm",
+                                      isChecked && "border-primary/50 bg-primary/10"
+                                    )}
+                                  >
+                                    <Checkbox
+                                      checked={isChecked}
+                                      disabled={loading || field.disabled || field.readOnly}
+                                      onCheckedChange={(checked) =>
+                                        handleMultiSelectToggle(field.name, option.value, checked === true)
+                                      }
+                                    />
+                                    <span>{option.label}</span>
+                                  </label>
+                                )
+                              })}
+                            </div>
+                          </div>
                         ) : field.type === "datetime" ? (
                           <DateTimePicker
                             value={values[field.name] ?? ""}

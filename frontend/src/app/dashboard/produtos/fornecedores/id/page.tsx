@@ -3,97 +3,93 @@
 import Link from "next/link"
 import { useEffect, useState, type ComponentType, type ReactNode } from "react"
 import { useSearchParams } from "next/navigation"
-import { ArrowLeft, Building2, CalendarClock, CircleDollarSign, Clock3, Loader2, Mail, MapPin, Phone, Save, ShieldAlert, User } from "lucide-react"
+import { ArrowLeft, Building2, CalendarClock, Clock3, Hash, Loader2, Mail, MapPin, Phone, Save, ShieldAlert, User } from "lucide-react"
 
 import { AlertComponent, ComponentAlert, type ComponentAlertState } from "@/components/layout/AlertComponent"
-import { suppliersMock } from "@/components/products/Supplier/supplier-mock-data"
-import {
-  supplierRiskLabels,
-  supplierSegmentLabels,
-  supplierStatusLabels,
-  type Supplier,
-  type SupplierRiskLevel,
-  type SupplierSegment,
-  type SupplierStatus,
-} from "@/components/products/Supplier/supplier-models"
+import { type Supplier } from "@/components/products/Supplier/supplier-models"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { formatCurrencyBR } from "@/utils/Formatter"
+import { getSupplierById, updateSupplier, type ApiSupplier, type UpdateSupplierPayload } from "@/services/Supplier.service"
+import { formatCurrencyBR, formatPhoneBR } from "@/utils/Formatter"
 
 type SupplierFormState = {
   id: string
+  code: string
   name: string
-  tradeName: string
-  segment: SupplierSegment
-  status: SupplierStatus
-  riskLevel: SupplierRiskLevel
-  contactName: string
-  contactEmail: string
-  contactPhone: string
+  fantasyName: string
+  segment: string
+  risk: string
+  contact: string
   city: string
   state: string
-  leadTimeDays: number
-  onTimeRate: number
-  qualityScore: number
-  annualSpend: number
-  paymentTerm: string
-  minimumOrderValue: number
+  status: string
   categories: string
-  lastDeliveryAt: string
-  nextReviewAt: string
+  lead: string
+  location: string
+  phone: string
+  email: string
+  minRequest: string
+  lastDelivery: string
 }
 
 const EMPTY_SUPPLIER_FORM: SupplierFormState = {
   id: "",
+  code: "",
   name: "",
-  tradeName: "",
-  segment: "servicos",
-  status: "avaliacao",
-  riskLevel: "medio",
-  contactName: "",
-  contactEmail: "",
-  contactPhone: "",
+  fantasyName: "",
+  segment: "",
+  risk: "",
+  contact: "",
   city: "",
   state: "",
-  leadTimeDays: 0,
-  onTimeRate: 0,
-  qualityScore: 0,
-  annualSpend: 0,
-  paymentTerm: "",
-  minimumOrderValue: 0,
+  status: "",
   categories: "",
-  lastDeliveryAt: "",
-  nextReviewAt: "",
+  lead: "",
+  location: "",
+  phone: "",
+  email: "",
+  minRequest: "",
+  lastDelivery: "",
 }
 
-const segmentOptions: SupplierSegment[] = ["eletronicos", "infraestrutura", "insumos", "embalagem", "servicos"]
-const statusOptions: SupplierStatus[] = ["ativo", "avaliacao", "suspenso"]
-const riskOptions: SupplierRiskLevel[] = ["baixo", "medio", "alto"]
+function parseCurrencyToNumber(value: string) {
+  const normalized = value
+    .replace(/[^\d,.-]/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".")
+    .trim()
+
+  if (!normalized) return Number.NaN
+  return Number(normalized)
+}
+
+function formatCurrencyField(value: string) {
+  const numericValue = parseCurrencyToNumber(value)
+  if (Number.isNaN(numericValue)) return value
+  return formatCurrencyBR(numericValue)
+}
 
 function toFormState(supplier: Supplier): SupplierFormState {
   return {
     id: supplier.id,
+    code: supplier.code,
     name: supplier.name,
-    tradeName: supplier.tradeName,
+    fantasyName: supplier.fantasyName,
     segment: supplier.segment,
-    status: supplier.status,
-    riskLevel: supplier.riskLevel,
-    contactName: supplier.contactName,
-    contactEmail: supplier.contactEmail,
-    contactPhone: supplier.contactPhone,
+    risk: supplier.risk,
+    contact: supplier.contact ?? "",
     city: supplier.city,
     state: supplier.state,
-    leadTimeDays: supplier.leadTimeDays,
-    onTimeRate: supplier.onTimeRate,
-    qualityScore: supplier.qualityScore,
-    annualSpend: supplier.annualSpend,
-    paymentTerm: supplier.paymentTerm,
-    minimumOrderValue: supplier.minimumOrderValue,
-    categories: supplier.categories.join(", "),
-    lastDeliveryAt: supplier.lastDeliveryAt,
-    nextReviewAt: supplier.nextReviewAt,
+    status: supplier.status,
+    categories: supplier.categories,
+    lead: supplier.lead ?? "",
+    location: supplier.location,
+    phone: formatPhoneBR(supplier.phone),
+    email: supplier.email,
+    minRequest: formatCurrencyField(supplier.minRequest),
+    lastDelivery: supplier.lastDelivery,
   }
 }
 
@@ -101,51 +97,64 @@ function toSupplier(form: SupplierFormState, previous: Supplier): Supplier {
   return {
     ...previous,
     id: form.id,
+    code: form.code.trim(),
     name: form.name.trim(),
-    tradeName: form.tradeName.trim(),
-    segment: form.segment,
-    status: form.status,
-    riskLevel: form.riskLevel,
-    contactName: form.contactName.trim(),
-    contactEmail: form.contactEmail.trim(),
-    contactPhone: form.contactPhone.trim(),
+    fantasyName: form.fantasyName.trim(),
+    segment: form.segment.trim(),
+    risk: form.risk.trim(),
+    contact: form.contact.trim() ? form.contact.trim() : undefined,
     city: form.city.trim(),
     state: form.state.trim(),
-    leadTimeDays: Math.max(0, form.leadTimeDays),
-    onTimeRate: Math.max(0, Math.min(100, form.onTimeRate)),
-    qualityScore: Math.max(0, Math.min(100, form.qualityScore)),
-    annualSpend: Math.max(0, form.annualSpend),
-    paymentTerm: form.paymentTerm.trim(),
-    minimumOrderValue: Math.max(0, form.minimumOrderValue),
-    categories: form.categories.split(",").map((item) => item.trim()).filter(Boolean),
-    lastDeliveryAt: form.lastDeliveryAt,
-    nextReviewAt: form.nextReviewAt,
+    status: form.status.trim(),
+    categories: form.categories.trim(),
+    lead: form.lead.trim() ? form.lead.trim() : undefined,
+    location: form.location.trim(),
+    phone: form.phone.trim(),
+    email: form.email.trim(),
+    minRequest: form.minRequest.trim(),
+    lastDelivery: form.lastDelivery.trim(),
   }
 }
 
-function createNewSupplierMock(): Supplier {
+function mapApiSupplierToUi(supplier: ApiSupplier): Supplier {
   return {
-    id: `sup-new-${Date.now()}`,
-    name: "Novo fornecedor",
-    tradeName: "Fornecedor novo",
-    segment: "servicos",
-    status: "avaliacao",
-    riskLevel: "medio",
-    leadTimeDays: 0,
-    onTimeRate: 0,
-    qualityScore: 0,
-    annualSpend: 0,
-    paymentTerm: "30 dias",
-    minimumOrderValue: 0,
-    activeContracts: 0,
-    categories: [],
-    contactName: "",
-    contactEmail: "",
-    contactPhone: "",
-    city: "",
-    state: "",
-    lastDeliveryAt: new Date().toISOString().slice(0, 10),
-    nextReviewAt: new Date().toISOString().slice(0, 10),
+    id: supplier.id,
+    code: supplier.supplierCode,
+    name: supplier.name,
+    fantasyName: supplier.fantasyName,
+    segment: supplier.segment,
+    risk: supplier.risk,
+    contact: supplier.contact ?? undefined,
+    city: supplier.city,
+    state: supplier.state,
+    status: supplier.status,
+    categories: supplier.categories,
+    lead: supplier.lead ?? undefined,
+    location: supplier.location,
+    phone: formatPhoneBR(supplier.phone),
+    email: supplier.email,
+    minRequest: formatCurrencyField(supplier.minRequest),
+    lastDelivery: supplier.lastDelivery,
+  }
+}
+
+function toUpdateSupplierPayload(form: SupplierFormState): UpdateSupplierPayload {
+  return {
+    name: form.name.trim(),
+    fantasyName: form.fantasyName.trim(),
+    segment: form.segment.trim(),
+    risk: form.risk.trim(),
+    contact: form.contact.trim() ? form.contact.trim() : null,
+    city: form.city.trim(),
+    state: form.state.trim().toUpperCase(),
+    status: form.status.trim(),
+    categories: form.categories.trim(),
+    lead: form.lead.trim() ? form.lead.trim() : null,
+    location: form.location.trim(),
+    phone: formatPhoneBR(form.phone.trim()),
+    email: form.email.trim(),
+    minRequest: formatCurrencyField(form.minRequest.trim()),
+    lastDelivery: form.lastDelivery.trim(),
   }
 }
 
@@ -174,9 +183,11 @@ export default function SupplierDetailsPage() {
     let mounted = true
 
     async function loadSupplier() {
-      if (!supplierId) {
+      if (!supplierId || supplierId === "new") {
         if (mounted) {
           setSelectedSupplier(null)
+          setForm(EMPTY_SUPPLIER_FORM)
+          setFeedback(ComponentAlert.Error("Fornecedor invalido para edicao."))
           setIsLoading(false)
         }
         return
@@ -184,12 +195,25 @@ export default function SupplierDetailsPage() {
 
       setIsLoading(true)
 
-      const supplier = supplierId === "new" ? createNewSupplierMock() : (suppliersMock.find((item) => item.id === supplierId) ?? null)
+      try {
+        const response = await getSupplierById(supplierId)
+        const supplier = mapApiSupplierToUi(response.data)
 
-      if (mounted) {
-        setSelectedSupplier(supplier)
-        setForm(supplier ? toFormState(supplier) : EMPTY_SUPPLIER_FORM)
-        setIsLoading(false)
+        if (mounted) {
+          setSelectedSupplier(supplier)
+          setForm(toFormState(supplier))
+        }
+      } catch (error) {
+        if (mounted) {
+          const message = error instanceof Error ? error.message : "Nao foi possivel carregar fornecedor."
+          setFeedback(ComponentAlert.Error(message))
+          setSelectedSupplier(null)
+          setForm(EMPTY_SUPPLIER_FORM)
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false)
+        }
       }
     }
 
@@ -201,7 +225,7 @@ export default function SupplierDetailsPage() {
   }, [supplierId])
 
   async function handleSaveChanges() {
-    if (!selectedSupplier) {
+    if (!selectedSupplier || !supplierId || supplierId === "new") {
       setFeedback(ComponentAlert.Error("Fornecedor nao encontrado para atualizacao."))
       return
     }
@@ -209,12 +233,18 @@ export default function SupplierDetailsPage() {
     setIsSaving(true)
     setFeedback(ComponentAlert.Info("Salvando alteracoes do fornecedor..."))
 
-    await new Promise((resolve) => setTimeout(resolve, 400))
-
-    const updatedSupplier = toSupplier(form, selectedSupplier)
-    setSelectedSupplier(updatedSupplier)
-    setFeedback(ComponentAlert.Success(supplierId === "new" ? "Fornecedor criado com sucesso (mock)." : "Fornecedor atualizado com sucesso."))
-    setIsSaving(false)
+    try {
+      const response = await updateSupplier(supplierId, toUpdateSupplierPayload(form))
+      const supplier = response.data ? mapApiSupplierToUi(response.data) : toSupplier(form, selectedSupplier)
+      setSelectedSupplier(supplier)
+      setForm(toFormState(supplier))
+      setFeedback(ComponentAlert.Success(response.message))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Nao foi possivel atualizar fornecedor."
+      setFeedback(ComponentAlert.Error(message))
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   if (isLoading) {
@@ -256,13 +286,13 @@ export default function SupplierDetailsPage() {
               <span>Fornecedor</span>
             </div>
 
-            <h1 className="text-3xl font-semibold tracking-tight">{form.name}</h1>
-            <p className="text-sm text-muted-foreground">Atualize dados cadastrais e operacionais do fornecedor selecionado.</p>
+            <h1 className="text-3xl font-semibold tracking-tight">{form.name || "Novo fornecedor"}</h1>
+            <p className="text-sm text-muted-foreground">Edite os campos do fornecedor organizados por categoria.</p>
           </div>
 
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
-              {form.id}
+              {form.code || "Sem codigo"}
             </Badge>
             <Button className="h-10 rounded-xl px-4" onClick={() => void handleSaveChanges()} disabled={isSaving}>
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -273,105 +303,81 @@ export default function SupplierDetailsPage() {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
-        <section className="space-y-6 rounded-3xl border bg-card/90 p-5 shadow-sm md:p-6">
+        <section className="space-y-4 rounded-3xl border bg-card/90 p-5 shadow-sm md:p-6">
           <header className="space-y-1">
-            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">dados principais</p>
-            <h2 className="text-xl font-semibold">Informacoes do fornecedor</h2>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">campos do fornecedor</p>
+            <h2 className="text-xl font-semibold">Cadastro por categoria</h2>
           </header>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="ID" id="supplier-id">
-              <Input id="supplier-id" value={form.id} readOnly aria-readonly="true" className="cursor-not-allowed bg-muted/45 text-muted-foreground" />
+          <FormCategory title="Identificacao" description="Codigo e dados basicos de cadastro.">
+            <Field label="Codigo do fornecedor" id="supplier-code">
+              <Input id="supplier-code" value={form.code} readOnly disabled />
             </Field>
 
             <Field label="Nome" id="supplier-name">
               <Input id="supplier-name" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
             </Field>
 
-            <Field label="Nome fantasia" id="supplier-trade-name">
+            <Field label="Nome fantasia" id="supplier-fantasy-name">
               <Input
-                id="supplier-trade-name"
-                value={form.tradeName}
-                onChange={(event) => setForm((prev) => ({ ...prev, tradeName: event.target.value }))}
+                id="supplier-fantasy-name"
+                value={form.fantasyName}
+                onChange={(event) => setForm((prev) => ({ ...prev, fantasyName: event.target.value }))}
               />
-            </Field>
-
-            <Field label="Segmento" id="supplier-segment">
-              <select
-                id="supplier-segment"
-                value={form.segment}
-                onChange={(event) => setForm((prev) => ({ ...prev, segment: event.target.value as SupplierSegment }))}
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              >
-                {segmentOptions.map((segment) => (
-                  <option key={segment} value={segment}>
-                    {supplierSegmentLabels[segment]}
-                  </option>
-                ))}
-              </select>
             </Field>
 
             <Field label="Status" id="supplier-status">
-              <select
-                id="supplier-status"
-                value={form.status}
-                onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as SupplierStatus }))}
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              >
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {supplierStatusLabels[status]}
-                  </option>
-                ))}
-              </select>
+              <Input id="supplier-status" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))} />
+            </Field>
+          </FormCategory>
+
+          <FormCategory title="Classificacao" description="Segmentacao e criticidade do fornecedor.">
+            <Field label="Segmento" id="supplier-segment">
+              <Input id="supplier-segment" value={form.segment} onChange={(event) => setForm((prev) => ({ ...prev, segment: event.target.value }))} />
             </Field>
 
             <Field label="Risco" id="supplier-risk">
-              <select
-                id="supplier-risk"
-                value={form.riskLevel}
-                onChange={(event) => setForm((prev) => ({ ...prev, riskLevel: event.target.value as SupplierRiskLevel }))}
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              >
-                {riskOptions.map((risk) => (
-                  <option key={risk} value={risk}>
-                    {supplierRiskLabels[risk]}
-                  </option>
-                ))}
-              </select>
+              <Input id="supplier-risk" value={form.risk} onChange={(event) => setForm((prev) => ({ ...prev, risk: event.target.value }))} />
             </Field>
-          </div>
 
-          <header className="space-y-1 pt-2">
-            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">contato</p>
-            <h2 className="text-xl font-semibold">Dados comerciais</h2>
-          </header>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Contato" id="supplier-contact-name">
+            <Field label="Categorias" id="supplier-categories">
               <Input
-                id="supplier-contact-name"
-                value={form.contactName}
-                onChange={(event) => setForm((prev) => ({ ...prev, contactName: event.target.value }))}
+                id="supplier-categories"
+                value={form.categories}
+                onChange={(event) => setForm((prev) => ({ ...prev, categories: event.target.value }))}
               />
             </Field>
 
-            <Field label="Email" id="supplier-contact-email">
+            <Field label="Pedido minimo" id="supplier-min-request">
               <Input
-                id="supplier-contact-email"
-                value={form.contactEmail}
-                onChange={(event) => setForm((prev) => ({ ...prev, contactEmail: event.target.value }))}
+                id="supplier-min-request"
+                value={form.minRequest}
+                onChange={(event) => setForm((prev) => ({ ...prev, minRequest: event.target.value }))}
+                onBlur={(event) => setForm((prev) => ({ ...prev, minRequest: formatCurrencyField(event.target.value) }))}
+              />
+            </Field>
+          </FormCategory>
+
+          <FormCategory title="Contato" description="Canal principal para negociacao e suporte.">
+            <Field label="Contato" id="supplier-contact">
+              <Input id="supplier-contact" value={form.contact} onChange={(event) => setForm((prev) => ({ ...prev, contact: event.target.value }))} />
+            </Field>
+
+            <Field label="Telefone" id="supplier-phone">
+              <Input
+                id="supplier-phone"
+                value={form.phone}
+                onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
+                onBlur={(event) => setForm((prev) => ({ ...prev, phone: formatPhoneBR(event.target.value) }))}
               />
             </Field>
 
-            <Field label="Telefone" id="supplier-contact-phone">
-              <Input
-                id="supplier-contact-phone"
-                value={form.contactPhone}
-                onChange={(event) => setForm((prev) => ({ ...prev, contactPhone: event.target.value }))}
-              />
+            <Field label="Email" id="supplier-email">
+              <Input id="supplier-email" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
             </Field>
+          </FormCategory>
 
+          <FormCategory title="Localizacao e operacao" description="Endereco de atendimento e previsibilidade logistica.">
             <Field label="Cidade" id="supplier-city">
               <Input id="supplier-city" value={form.city} onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))} />
             </Field>
@@ -380,123 +386,72 @@ export default function SupplierDetailsPage() {
               <Input id="supplier-state" value={form.state} onChange={(event) => setForm((prev) => ({ ...prev, state: event.target.value }))} />
             </Field>
 
-            <Field label="Categorias (separadas por virgula)" id="supplier-categories">
+            <Field label="Localizacao" id="supplier-location">
               <Input
-                id="supplier-categories"
-                value={form.categories}
-                onChange={(event) => setForm((prev) => ({ ...prev, categories: event.target.value }))}
-              />
-            </Field>
-          </div>
-
-          <header className="space-y-1 pt-2">
-            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">operacao</p>
-            <h2 className="text-xl font-semibold">Indicadores e condicoes</h2>
-          </header>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <Field label="Lead time (dias)" id="supplier-lead-time">
-              <Input
-                id="supplier-lead-time"
-                type="number"
-                min={0}
-                value={form.leadTimeDays}
-                onChange={(event) => setForm((prev) => ({ ...prev, leadTimeDays: Number(event.target.value) }))}
+                id="supplier-location"
+                value={form.location}
+                onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
               />
             </Field>
 
-            <Field label="SLA no prazo (%)" id="supplier-on-time-rate">
-              <Input
-                id="supplier-on-time-rate"
-                type="number"
-                min={0}
-                max={100}
-                value={form.onTimeRate}
-                onChange={(event) => setForm((prev) => ({ ...prev, onTimeRate: Number(event.target.value) }))}
-              />
-            </Field>
-
-            <Field label="Qualidade (%)" id="supplier-quality-score">
-              <Input
-                id="supplier-quality-score"
-                type="number"
-                min={0}
-                max={100}
-                value={form.qualityScore}
-                onChange={(event) => setForm((prev) => ({ ...prev, qualityScore: Number(event.target.value) }))}
-              />
-            </Field>
-
-            <Field label="Spend anual" id="supplier-annual-spend">
-              <Input
-                id="supplier-annual-spend"
-                type="number"
-                min={0}
-                value={form.annualSpend}
-                onChange={(event) => setForm((prev) => ({ ...prev, annualSpend: Number(event.target.value) }))}
-              />
-            </Field>
-
-            <Field label="Pedido minimo" id="supplier-minimum-order">
-              <Input
-                id="supplier-minimum-order"
-                type="number"
-                min={0}
-                value={form.minimumOrderValue}
-                onChange={(event) => setForm((prev) => ({ ...prev, minimumOrderValue: Number(event.target.value) }))}
-              />
-            </Field>
-
-            <Field label="Prazo de pagamento" id="supplier-payment-term">
-              <Input
-                id="supplier-payment-term"
-                value={form.paymentTerm}
-                onChange={(event) => setForm((prev) => ({ ...prev, paymentTerm: event.target.value }))}
-              />
+            <Field label="Lead" id="supplier-lead">
+              <Input id="supplier-lead" value={form.lead} onChange={(event) => setForm((prev) => ({ ...prev, lead: event.target.value }))} />
             </Field>
 
             <Field label="Ultima entrega" id="supplier-last-delivery">
               <Input
                 id="supplier-last-delivery"
                 type="date"
-                value={form.lastDeliveryAt}
-                onChange={(event) => setForm((prev) => ({ ...prev, lastDeliveryAt: event.target.value }))}
+                value={form.lastDelivery}
+                readOnly
+                disabled
               />
             </Field>
-
-            <Field label="Proxima revisao" id="supplier-next-review">
-              <Input
-                id="supplier-next-review"
-                type="date"
-                value={form.nextReviewAt}
-                onChange={(event) => setForm((prev) => ({ ...prev, nextReviewAt: event.target.value }))}
-              />
-            </Field>
-          </div>
+          </FormCategory>
         </section>
 
         <aside className="space-y-5">
           <section className="rounded-3xl border bg-card/90 p-5 shadow-sm">
-            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">status atual</p>
-            <h2 className="mt-1 text-xl font-semibold">Resumo rapido</h2>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">resumo</p>
+            <h2 className="mt-1 text-xl font-semibold">Fornecedor selecionado</h2>
 
             <div className="mt-4 grid gap-2 text-sm">
-              <Stat icon={Building2} label="Fornecedor" value={form.tradeName || form.name} />
-              <Stat icon={User} label="Contato" value={form.contactName} />
-              <Stat icon={Mail} label="Email" value={form.contactEmail} />
-              <Stat icon={Phone} label="Telefone" value={form.contactPhone} />
+              <Stat icon={Hash} label="Codigo" value={form.code} />
+              <Stat icon={Building2} label="Fornecedor" value={form.fantasyName || form.name} />
+              <Stat icon={User} label="Contato" value={form.contact} />
+              <Stat icon={Mail} label="Email" value={form.email} />
+              <Stat icon={Phone} label="Telefone" value={form.phone} />
               <Stat icon={MapPin} label="Cidade" value={`${form.city} - ${form.state}`} />
-              <Stat icon={Clock3} label="Lead time" value={`${form.leadTimeDays} dias`} />
-              <Stat icon={ShieldAlert} label="Risco" value={supplierRiskLabels[form.riskLevel]} />
-              <Stat icon={CircleDollarSign} label="Spend anual" value={formatCurrencyBR(form.annualSpend)} />
-              <Stat icon={CircleDollarSign} label="Pedido minimo" value={formatCurrencyBR(form.minimumOrderValue)} />
-              <Stat icon={CalendarClock} label="Ultima entrega" value={formatDate(form.lastDeliveryAt)} />
-              <Stat icon={CalendarClock} label="Proxima revisao" value={formatDate(form.nextReviewAt)} />
+              <Stat icon={MapPin} label="Localizacao" value={form.location} />
+              <Stat icon={Clock3} label="Lead" value={form.lead} />
+              <Stat icon={ShieldAlert} label="Risco" value={form.risk} />
+              <Stat icon={CalendarClock} label="Ultima entrega" value={formatDate(form.lastDelivery)} />
             </div>
           </section>
         </aside>
       </div>
     </div>
+  )
+}
+
+function FormCategory({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description: string
+  children: ReactNode
+}) {
+  return (
+    <section className="space-y-3 rounded-2xl border border-border/70 bg-background/40 p-4">
+      <header className="space-y-1">
+        <h3 className="text-sm font-semibold tracking-wide">{title}</h3>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </header>
+
+      <div className="grid gap-4 md:grid-cols-2">{children}</div>
+    </section>
   )
 }
 

@@ -1,14 +1,6 @@
 import { FilterX, Search, SlidersHorizontal } from "lucide-react"
 
-import {
-  supplierRiskLabels,
-  supplierSegmentLabels,
-  supplierStatusLabels,
-  type SupplierFilters as SupplierFiltersType,
-  type SupplierRiskLevel,
-  type SupplierSegment,
-  type SupplierStatus,
-} from "@/components/products/Supplier/supplier-models"
+import { type SupplierFilters as SupplierFiltersType } from "@/components/products/Supplier/supplier-models"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,13 +8,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type SupplierFiltersProps = {
   filters: SupplierFiltersType
-  segments: SupplierSegment[]
+  segments: string[]
+  statuses: string[]
+  risks: string[]
   totalCount: number
   visibleCount: number
   onFiltersChange: (next: SupplierFiltersType) => void
 }
 
-export function SupplierFilters({ filters, segments, totalCount, visibleCount, onFiltersChange }: SupplierFiltersProps) {
+function toLabel(value: string) {
+  if (!value) return value
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+export function SupplierFilters({
+  filters,
+  segments,
+  statuses,
+  risks,
+  totalCount,
+  visibleCount,
+  onFiltersChange,
+}: SupplierFiltersProps) {
   const hasActiveFilters = filters.search.length > 0 || filters.segment !== "all" || filters.status !== "all" || filters.risk !== "all"
 
   return (
@@ -45,12 +52,12 @@ export function SupplierFilters({ filters, segments, totalCount, visibleCount, o
           <Input
             value={filters.search}
             onChange={(event) => onFiltersChange({ ...filters, search: event.target.value })}
-            placeholder="Buscar por nome, categoria, contato ou cidade..."
+            placeholder="Buscar por codigo, nome, categoria, contato, cidade..."
             className="pl-9"
           />
         </div>
 
-        <Select value={filters.segment} onValueChange={(value) => onFiltersChange({ ...filters, segment: value as SupplierSegment | "all" })}>
+        <Select value={filters.segment} onValueChange={(value) => onFiltersChange({ ...filters, segment: value })}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Segmento" />
           </SelectTrigger>
@@ -58,35 +65,35 @@ export function SupplierFilters({ filters, segments, totalCount, visibleCount, o
             <SelectItem value="all">Todos os segmentos</SelectItem>
             {segments.map((segment) => (
               <SelectItem key={segment} value={segment}>
-                {supplierSegmentLabels[segment]}
+                {toLabel(segment)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select value={filters.status} onValueChange={(value) => onFiltersChange({ ...filters, status: value as SupplierStatus | "all" })}>
+        <Select value={filters.status} onValueChange={(value) => onFiltersChange({ ...filters, status: value })}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent align="start">
             <SelectItem value="all">Todos os status</SelectItem>
-            {(["ativo", "avaliacao", "suspenso"] as SupplierStatus[]).map((status) => (
+            {statuses.map((status) => (
               <SelectItem key={status} value={status}>
-                {supplierStatusLabels[status]}
+                {toLabel(status)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select value={filters.risk} onValueChange={(value) => onFiltersChange({ ...filters, risk: value as SupplierRiskLevel | "all" })}>
+        <Select value={filters.risk} onValueChange={(value) => onFiltersChange({ ...filters, risk: value })}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Risco" />
           </SelectTrigger>
           <SelectContent align="start">
             <SelectItem value="all">Todos os riscos</SelectItem>
-            {(["alto", "medio", "baixo"] as SupplierRiskLevel[]).map((risk) => (
+            {risks.map((risk) => (
               <SelectItem key={risk} value={risk}>
-                {supplierRiskLabels[risk]}
+                {toLabel(risk)}
               </SelectItem>
             ))}
           </SelectContent>

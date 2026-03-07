@@ -1,13 +1,11 @@
 import { AlertTriangle, Boxes, Clock3, Layers3, Plus } from "lucide-react"
 
-import { formatPercent } from "@/components/products/Supplier/supplier-models"
 import { Button } from "@/components/ui/button"
 
 type SupplierPageHeaderProps = {
   totalSuppliers: number
   activeSuppliers: number
-  averageLeadTime: number
-  averageOnTimeRate: number
+  averageLeadDays: number
   highRiskSuppliers: number
   hasSelectedSupplier: boolean
   selectedSupplierName: string | null
@@ -17,8 +15,7 @@ type SupplierPageHeaderProps = {
 export function SupplierPageHeader({
   totalSuppliers,
   activeSuppliers,
-  averageLeadTime,
-  averageOnTimeRate,
+  averageLeadDays,
   highRiskSuppliers,
   hasSelectedSupplier,
   selectedSupplierName,
@@ -39,8 +36,8 @@ export function SupplierPageHeader({
     },
     {
       id: "coverage",
-      label: "Lead time medio",
-      value: `${averageLeadTime.toFixed(1)} dias`,
+      label: "Lead medio",
+      value: `${averageLeadDays.toFixed(1)} dias`,
       icon: Clock3,
     },
     {
@@ -65,11 +62,10 @@ export function SupplierPageHeader({
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold tracking-tight">Controle operacional dos fornecedores em tempo real</h1>
             <p className="max-w-2xl text-sm text-muted-foreground md:text-base">
-              Acompanhe saude da base de fornecedores, niveis de risco e status da operacao para manter abastecimento previsivel.
+              Acompanhe os fornecedores por risco, status e previsibilidade operacional em uma visao unica.
             </p>
             <p className="text-xs text-muted-foreground">
-              {hasSelectedSupplier ? `Selecionado: ${selectedSupplierName}` : "Nenhum fornecedor selecionado"} - SLA medio:{" "}
-              {formatPercent(averageOnTimeRate)}
+              {hasSelectedSupplier ? `Selecionado: ${selectedSupplierName}` : "Nenhum fornecedor selecionado"}
             </p>
           </div>
 
