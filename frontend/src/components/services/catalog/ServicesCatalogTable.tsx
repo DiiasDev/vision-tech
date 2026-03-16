@@ -59,7 +59,7 @@ export function ServicesCatalogTable({ services, detailsBasePath }: ServicesCata
           <table className="min-w-[980px] w-full text-sm">
             <thead className="bg-muted/20 text-xs uppercase tracking-[0.14em] text-muted-foreground">
               <tr className="border-b border-border/70">
-                <th className="px-6 py-3 text-left font-medium">Servico</th>
+                <th className="pl-[4.25rem] pr-6 py-3 text-left font-medium">Servico</th>
                 <th className="px-3 py-3 text-left font-medium">Categoria</th>
                 <th className="px-3 py-3 text-left font-medium">Modelo</th>
                 <th className="px-3 py-3 text-left font-medium">SLA</th>
@@ -68,7 +68,7 @@ export function ServicesCatalogTable({ services, detailsBasePath }: ServicesCata
                 <th className="px-3 py-3 text-left font-medium">Contratos</th>
                 <th className="px-3 py-3 text-left font-medium">Time</th>
                 <th className="px-3 py-3 text-left font-medium">Status</th>
-                <th className="px-3 py-3 text-right font-medium">Acoes</th>
+                <th className="px-3 py-3 text-center font-medium">Ações</th>
                 <th className="px-3 py-3 text-right font-medium">Atualizado</th>
               </tr>
             </thead>
@@ -113,8 +113,8 @@ export function ServicesCatalogTable({ services, detailsBasePath }: ServicesCata
                       {statusLabel(service.status)}
                     </Badge>
                   </td>
-                  <td className="px-3 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                  <td className="px-3 py-4 text-center">
+                    <div className="flex items-center justify-center gap-2">
                       <Button asChild size="sm" className="rounded-lg">
                         <Link href={`${detailsBasePath}?serviceId=${service.id}`}>Editar</Link>
                       </Button>

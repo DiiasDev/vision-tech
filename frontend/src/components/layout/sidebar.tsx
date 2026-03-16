@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -10,7 +11,6 @@ import {
   ChevronDown,
   ClipboardList,
   DollarSign,
-  FolderKanban,
   LayoutDashboard,
   Package,
   Settings,
@@ -167,11 +167,24 @@ export function Sidebar({ isOpen }: SidebarProps) {
         <div className="pointer-events-none absolute -right-10 top-10 h-36 w-36 rounded-full bg-accent/20 blur-3xl" />
 
         <div className="relative rounded-2xl border border-sidebar-border/70 bg-background/50 p-4 shadow-sm backdrop-blur-sm">
-          <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-sidebar-foreground/65">Painel</p>
-            <h2 className="mt-2 text-3xl font-bold leading-none tracking-tight text-foreground">
-              Vision <span className="text-accent">Tech</span>
-            </h2>
+          <div className="flex items-center gap-3">
+            <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-sidebar-border/60 bg-background/70 p-0.5 shadow-sm">
+              <Image
+                src="/icons/icon-192.png"
+                alt="Icone do Vision Tech"
+                fill
+                sizes="48px"
+                className="object-cover"
+                priority
+              />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-[0.22em] text-sidebar-foreground/65">Painel</p>
+              <h2 className="mt-1 text-3xl font-bold leading-none tracking-tight text-foreground">
+                Vision <span className="text-accent">Tech</span>
+              </h2>
+              <p className="mt-1 text-[11px] text-sidebar-foreground/72">Plataforma de gestao integrada</p>
+            </div>
           </div>
         </div>
 
@@ -274,7 +287,10 @@ export function Sidebar({ isOpen }: SidebarProps) {
 
         <div className="rounded-2xl border border-sidebar-border/70 bg-background/55 p-4">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <FolderKanban className="h-4 w-4 text-primary" /> Workspace Pro
+            <span className="relative h-5 w-5 overflow-hidden rounded-md border border-primary/30 bg-background/70">
+              <Image src="/icons/icon-192.png" alt="Logo Vision Tech" fill sizes="20px" className="object-cover" />
+            </span>
+            Workspace Pro
           </div>
           <p className="mt-2 text-xs leading-relaxed text-sidebar-foreground/70">
             Operacao centralizada com monitoramento por area e controles inteligentes.
