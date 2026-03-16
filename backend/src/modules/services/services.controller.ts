@@ -6,10 +6,6 @@ import {
   Body,
   Req,
   UseGuards,
-  Get,
-  Delete,
-  Param,
-  Patch,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/dto/guards/jwt-auth.guard';

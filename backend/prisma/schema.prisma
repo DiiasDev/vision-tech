@@ -272,14 +272,14 @@ model ServiceCatalog {
   internal_cost      Decimal  @db.Decimal(12, 2)
   estimated_duration String
   complexity_level   String
-  team_id            String
+  responsible        String   @default("Responsavel padrao")
   status             String
   is_recurring       Boolean  @default(false)
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
-  @@unique([team_id, code])
-  @@index([team_id])
+  @@unique([code])
+  @@index([responsible])
   @@index([status])
   @@index([category])
 }

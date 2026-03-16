@@ -37,6 +37,8 @@ function formatUpdatedAt(value: string) {
 }
 
 export function ServicesCatalogTable({ services, detailsBasePath }: ServicesCatalogTableProps) {
+  const activeServicesCount = services.filter((service) => service.status === "active").length
+
   return (
     <Card className="overflow-hidden border-border/70 bg-card/70 shadow-lg">
       <CardHeader className="border-b border-border/70 pb-4">
@@ -49,7 +51,7 @@ export function ServicesCatalogTable({ services, detailsBasePath }: ServicesCata
           </div>
           <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
-            7 servico(s) ativo(s)
+            {activeServicesCount} servico(s) ativo(s)
           </div>
         </div>
       </CardHeader>
@@ -66,7 +68,7 @@ export function ServicesCatalogTable({ services, detailsBasePath }: ServicesCata
                 <th className="px-3 py-3 text-left font-medium">Execucao media</th>
                 <th className="px-3 py-3 text-left font-medium">Ticket Base</th>
                 <th className="px-3 py-3 text-left font-medium">Contratos</th>
-                <th className="px-3 py-3 text-left font-medium">Time</th>
+                <th className="px-3 py-3 text-left font-medium">Responsavel</th>
                 <th className="px-3 py-3 text-left font-medium">Status</th>
                 <th className="px-3 py-3 text-center font-medium">Ações</th>
                 <th className="px-3 py-3 text-right font-medium">Atualizado</th>
@@ -107,7 +109,7 @@ export function ServicesCatalogTable({ services, detailsBasePath }: ServicesCata
                   <td className="px-3 py-4 text-foreground">{service.avgExecutionHours}h</td>
                   <td className="px-3 py-4 text-foreground">{formatCurrencyBR(service.basePrice)}</td>
                   <td className="px-3 py-4 text-foreground">{service.activeContracts}</td>
-                  <td className="px-3 py-4 text-foreground">{service.ownerTeam}</td>
+                  <td className="px-3 py-4 text-foreground">{service.responsible}</td>
                   <td className="px-3 py-4">
                     <Badge variant={statusBadgeVariant(service.status)} className="rounded-full px-2.5 py-1">
                       {statusLabel(service.status)}

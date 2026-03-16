@@ -1,16 +1,73 @@
 import { Activity, CircleCheckBig, ShieldCheck, Wrench } from "lucide-react"
 
 import { serviceCatalogStatsMockData } from "@/components/services/catalog/catalog-mock-data"
+import type { ServiceCatalogItem } from "@/components/services/catalog/catalog-types"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-function getIcon(icon: (typeof serviceCatalogStatsMockData)[number]["icon"]) {
+import { formatCurrencyBR } from "@/utils/Formatter"
+
+type ServicesCatalogStatsProps = {
+  services?: ServiceCatalogItem[]
+}
+
+type StatsIcon = "activity" | "shield" | "check" | "wrench"
+
+function getIcon(icon: StatsIcon) {
   if (icon === "activity") return Activity
   if (icon === "shield") return ShieldCheck
   if (icon === "check") return CircleCheckBig
   return Wrench
 }
 
-export function ServicesCatalogStats() {
-  const cards = serviceCatalogStatsMockData
+export function ServicesCatalogStats({ services }: ServicesCatalogStatsProps) {
+  const fallbackCards = serviceCatalogStatsMockData
+  const totalServices = services?.length ?? 0
+  const activeServices = services?.filter((service) => service.status === "active").length ?? 0
+  const activeContracts = services?.reduce((sum, service) => sum + (service.activeContracts ?? 0), 0) ?? 0
+  const basePriceAverage =
+    totalServices > 0
+      ? (services?.reduce((sum, service) => sum + (service.basePrice ?? 0), 0) ?? 0) / totalServices
+      : 0
+  const criticalSlaServices =
+    services?.filter((service) => Number.isFinite(service.slaHours) && service.slaHours > 0 && service.slaHours <= 8)
+      .length ?? 0
+
+  const cards =
+    services && services.length > 0
+      ? [
+          {
+            label: "Servicos no Catalogo",
+            value: String(totalServices),
+            helper: `${activeServices} ativo(s) para proposta imediata`,
+            tone: "text-sky-300",
+            iconTone: "text-sky-200",
+            icon: "wrench" as const,
+          },
+          {
+            label: "Contratos Ativos",
+            value: String(activeContracts),
+            helper: "Volume total consolidado no catalogo atual",
+            tone: "text-emerald-300",
+            iconTone: "text-emerald-200",
+            icon: "activity" as const,
+          },
+          {
+            label: "Ticket Medio Base",
+            value: formatCurrencyBR(basePriceAverage || 0),
+            helper: "Referencia inicial para negociacao comercial",
+            tone: "text-violet-300",
+            iconTone: "text-violet-200",
+            icon: "shield" as const,
+          },
+          {
+            label: "SLA Critico (<=8h)",
+            value: String(criticalSlaServices),
+            helper: "Servicos com maior exigencia operacional",
+            tone: "text-amber-300",
+            iconTone: "text-amber-200",
+            icon: "check" as const,
+          },
+        ]
+      : fallbackCards
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

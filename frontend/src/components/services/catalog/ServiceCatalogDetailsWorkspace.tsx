@@ -171,8 +171,8 @@ export function ServiceCatalogDetailsWorkspace({ catalogHref }: ServiceCatalogDe
               </select>
             </Field>
 
-            <Field label="Time responsavel" id="ownerTeam">
-              <Input id="ownerTeam" defaultValue={selectedService.ownerTeam} />
+            <Field label="Responsavel" id="responsible">
+              <Input id="responsible" defaultValue={selectedService.responsible} />
             </Field>
           </div>
 
@@ -240,7 +240,7 @@ export function ServiceCatalogDetailsWorkspace({ catalogHref }: ServiceCatalogDe
               <Stat icon={Clock3} label="SLA" value={`${selectedService.slaHours}h`} />
               <Stat icon={Activity} label="Execucao media" value={`${selectedService.avgExecutionHours}h`} />
               <Stat icon={ShieldCheck} label="Contratos ativos" value={`${selectedService.activeContracts}`} />
-              <Stat icon={User} label="Time responsavel" value={selectedService.ownerTeam} />
+              <Stat icon={User} label="Responsavel" value={selectedService.responsible} />
               <Stat icon={Wrench} label="Modelo de cobranca" value={billingModelLabel(selectedService.billingModel)} />
               <Stat icon={Tag} label="Atualizado em" value={formatDate(selectedService.updatedAt)} />
             </div>

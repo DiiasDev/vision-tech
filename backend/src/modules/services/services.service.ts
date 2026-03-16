@@ -1,4 +1,6 @@
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 export type createServiceDto = {
   code?: string;
@@ -18,7 +20,7 @@ export type createServiceDto = {
 
   complexity_level: string;
 
-  team_id: string;
+  responsible?: string;
 
   status?: string;
   is_recurring?: boolean;
@@ -32,26 +34,24 @@ type AuthenticatedUser = {
   organizationId: string;
 };
 
+@Injectable()
 export class ServicesService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  private async getNextServiceCatalogCodeNumber(teamId: string) {
+  private async getNextServiceCatalogCodeNumber() {
     const rows = await this.prisma.$queryRaw<Array<{ next_number: number }>>`
       SELECT COALESCE(MAX(CAST(SUBSTRING(code FROM 6 FOR 4) AS INTEGER)), 0) + 1 AS next_number
       FROM "ServiceCatalog"
-      WHERE "team_id" = ${teamId}
-        AND code ~ '^CSVC-[0-9]{4}$'
+      WHERE code ~ '^CSVC-[0-9]{4}$'
     `;
 
     const next = rows[0]?.next_number ?? 1;
     return Number.isFinite(next) && next > 0 ? next : 1;
   }
 
-  async createService(currentUser: AuthenticatedUser, dto: createServiceDto) {
+  async createService(_currentUser: AuthenticatedUser, dto: createServiceDto) {
     try {
-      const baseCodeNumber = await this.getNextServiceCatalogCodeNumber(
-        dto.team_id,
-      );
+      const baseCodeNumber = await this.getNextServiceCatalogCodeNumber();
 
       let service: { id: string; code: string } | null = null;
       const maxAttempts = 5;
@@ -90,8 +90,6 @@ export class ServicesService {
 
               complexity_level: dto.complexity_level,
 
-              team_id: dto.team_id,
-
               status: dto.status ?? 'ACTIVE',
               is_recurring: dto.is_recurring ?? false,
 
@@ -121,11 +119,11 @@ export class ServicesService {
                 ? [rawTarget]
                 : [];
 
-            const isTeamCodeConflict =
-              (target.includes('team_id') && target.includes('code')) ||
-              target.includes('ServiceCatalog_team_id_code_key');
+            const isCodeConflict =
+              target.includes('code') ||
+              target.includes('ServiceCatalog_code_key');
 
-            if (isTeamCodeConflict && attempt < maxAttempts) {
+            if (isCodeConflict && attempt < maxAttempts) {
               continue;
             }
           }

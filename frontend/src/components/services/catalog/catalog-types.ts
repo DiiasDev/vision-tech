@@ -14,6 +14,6 @@ export type ServiceCatalogItem = {
   slaHours: number
   avgExecutionHours: number
   activeContracts: number
-  ownerTeam: string
+  responsible: string
   updatedAt: string
 }

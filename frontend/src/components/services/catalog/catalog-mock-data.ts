@@ -13,7 +13,7 @@ export const serviceCatalogMockData: ServiceCatalogItem[] = [
     slaHours: 8,
     avgExecutionHours: 36,
     activeContracts: 14,
-    ownerTeam: "Operacoes Enterprise",
+    responsible: "Operacoes Enterprise",
     updatedAt: "2026-03-14",
   },
   {
@@ -28,7 +28,7 @@ export const serviceCatalogMockData: ServiceCatalogItem[] = [
     slaHours: 4,
     avgExecutionHours: 3,
     activeContracts: 62,
-    ownerTeam: "Service Desk",
+    responsible: "Service Desk",
     updatedAt: "2026-03-15",
   },
   {
@@ -43,7 +43,7 @@ export const serviceCatalogMockData: ServiceCatalogItem[] = [
     slaHours: 24,
     avgExecutionHours: 22,
     activeContracts: 9,
-    ownerTeam: "CyberOps",
+    responsible: "CyberOps",
     updatedAt: "2026-03-08",
   },
   {
@@ -58,7 +58,7 @@ export const serviceCatalogMockData: ServiceCatalogItem[] = [
     slaHours: 2,
     avgExecutionHours: 1,
     activeContracts: 27,
-    ownerTeam: "NOC",
+    responsible: "NOC",
     updatedAt: "2026-03-12",
   },
   {
@@ -73,7 +73,7 @@ export const serviceCatalogMockData: ServiceCatalogItem[] = [
     slaHours: 16,
     avgExecutionHours: 44,
     activeContracts: 0,
-    ownerTeam: "Cloud Platform",
+    responsible: "Cloud Platform",
     updatedAt: "2026-03-03",
   },
   {
@@ -88,7 +88,7 @@ export const serviceCatalogMockData: ServiceCatalogItem[] = [
     slaHours: 48,
     avgExecutionHours: 2,
     activeContracts: 21,
-    ownerTeam: "Enablement",
+    responsible: "Enablement",
     updatedAt: "2026-03-10",
   },
   {
@@ -103,7 +103,7 @@ export const serviceCatalogMockData: ServiceCatalogItem[] = [
     slaHours: 12,
     avgExecutionHours: 5,
     activeContracts: 33,
-    ownerTeam: "Factory",
+    responsible: "Factory",
     updatedAt: "2026-03-13",
   },
   {
@@ -118,7 +118,7 @@ export const serviceCatalogMockData: ServiceCatalogItem[] = [
     slaHours: 6,
     avgExecutionHours: 2,
     activeContracts: 5,
-    ownerTeam: "Infra Core",
+    responsible: "Infra Core",
     updatedAt: "2026-02-28",
   },
   {
@@ -133,7 +133,7 @@ export const serviceCatalogMockData: ServiceCatalogItem[] = [
     slaHours: 72,
     avgExecutionHours: 18,
     activeContracts: 2,
-    ownerTeam: "Governanca",
+    responsible: "Governanca",
     updatedAt: "2026-03-01",
   },
   {
@@ -148,7 +148,7 @@ export const serviceCatalogMockData: ServiceCatalogItem[] = [
     slaHours: 8,
     avgExecutionHours: 4,
     activeContracts: 19,
-    ownerTeam: "Application Ops",
+    responsible: "Application Ops",
     updatedAt: "2026-03-16",
   },
 ]

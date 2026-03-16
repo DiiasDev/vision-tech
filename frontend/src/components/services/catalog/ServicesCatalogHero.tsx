@@ -2,7 +2,11 @@ import { Plus, Sparkles, Wrench } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 
-export function ServicesCatalogHero() {
+type ServicesCatalogHeroProps = {
+  onAddService?: () => void
+}
+
+export function ServicesCatalogHero({ onAddService }: ServicesCatalogHeroProps) {
   return (
     <section className="relative w-full overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/12 via-card to-sky-500/10 p-6 shadow-sm md:p-7">
       <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
@@ -29,7 +33,7 @@ export function ServicesCatalogHero() {
           </div>
         </div>
 
-        <Button type="button" className="h-11 rounded-xl px-5 text-sm shadow-sm">
+        <Button type="button" className="h-11 rounded-xl px-5 text-sm shadow-sm" onClick={onAddService}>
           <Plus className="h-4 w-4" />
           Novo Servico
         </Button>
