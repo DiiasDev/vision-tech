@@ -1,15 +1,16 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
-import { AlertComponent, type ComponentAlertState } from "@/components/layout/AlertComponent"
-import { serviceCatalogMockData } from "@/components/services/catalog/catalog-mock-data"
+import { AlertComponent, ComponentAlert, type ComponentAlertState } from "@/components/layout/AlertComponent"
 import { FormServices } from "@/components/services/catalog/FormServices"
-import type { ServiceCatalogStatus } from "@/components/services/catalog/catalog-types"
+import { mapApiServiceToCatalogItem } from "@/components/services/catalog/catalog-mappers"
+import type { ServiceCatalogItem, ServiceCatalogStatus } from "@/components/services/catalog/catalog-types"
 import { ServicesCatalogFilters } from "@/components/services/catalog/ServicesCatalogFilters"
 import { ServicesCatalogHero } from "@/components/services/catalog/ServicesCatalogHero"
 import { ServicesCatalogStats } from "@/components/services/catalog/ServicesCatalogStats"
 import { ServicesCatalogTable } from "@/components/services/catalog/ServicesCatalogTable"
+import { getServices } from "@/services/services.service"
 
 type ServiceCatalogStatusFilter = "all" | ServiceCatalogStatus
 
@@ -21,9 +22,42 @@ export function ServicesCatalogWorkspace({ detailsBasePath = "/services/catalog/
   const [searchValue, setSearchValue] = useState("")
   const [statusFilter, setStatusFilter] = useState<ServiceCatalogStatusFilter>("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
-  const [services, setServices] = useState(serviceCatalogMockData)
+  const [services, setServices] = useState<ServiceCatalogItem[]>([])
+  const [isLoadingServices, setIsLoadingServices] = useState(true)
   const [showServiceForm, setShowServiceForm] = useState(false)
   const [feedback, setFeedback] = useState<ComponentAlertState | null>(null)
+
+  useEffect(() => {
+    let isActive = true
+
+    async function loadServicesCatalog() {
+      setIsLoadingServices(true)
+
+      try {
+        const response = await getServices()
+        if (!isActive) return
+
+        const mappedServices = response.data.map(mapApiServiceToCatalogItem)
+        setServices(mappedServices)
+      } catch (error) {
+        if (!isActive) return
+
+        const message = error instanceof Error ? error.message : "Nao foi possivel carregar os servicos do catalogo."
+        setServices([])
+        setFeedback(ComponentAlert.Error(message))
+      } finally {
+        if (isActive) {
+          setIsLoadingServices(false)
+        }
+      }
+    }
+
+    void loadServicesCatalog()
+
+    return () => {
+      isActive = false
+    }
+  }, [])
 
   const categories = useMemo(() => {
     const uniqueCategories = new Set<string>()
@@ -83,7 +117,13 @@ export function ServicesCatalogWorkspace({ detailsBasePath = "/services/catalog/
       </div>
 
       <div className="relative">
-        <ServicesCatalogTable services={filteredServices} detailsBasePath={detailsBasePath} />
+        {isLoadingServices ? (
+          <div className="rounded-2xl border border-border/70 bg-card/70 px-6 py-10 text-center text-sm text-muted-foreground shadow-lg">
+            Carregando servicos do catalogo...
+          </div>
+        ) : (
+          <ServicesCatalogTable services={filteredServices} detailsBasePath={detailsBasePath} />
+        )}
       </div>
 
       <FormServices

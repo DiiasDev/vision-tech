@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import {
   Activity,
@@ -15,16 +16,15 @@ import {
   Wrench,
 } from "lucide-react"
 
-import {
-  getServiceCatalogMockById,
-  serviceCatalogMockCategories,
-} from "@/components/services/catalog/catalog-mock-data"
-import type { ServiceBillingModel, ServiceCatalogStatus } from "@/components/services/catalog/catalog-types"
+import { AlertComponent, ComponentAlert, type ComponentAlertState } from "@/components/layout/AlertComponent"
+import { mapApiServiceToCatalogItem } from "@/components/services/catalog/catalog-mappers"
+import type { ServiceBillingModel, ServiceCatalogItem, ServiceCatalogStatus } from "@/components/services/catalog/catalog-types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { getServiceById } from "@/services/services.service"
 import { formatCurrencyBR } from "@/utils/Formatter"
 
 type ServiceCatalogDetailsWorkspaceProps = {
@@ -64,11 +64,14 @@ function formatDate(value: string) {
     }).format(localDate)
   }
 
+  const parsedDate = new Date(value)
+  if (Number.isNaN(parsedDate.getTime())) return "Sem registro"
+
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "long",
     year: "numeric",
-  }).format(new Date(value))
+  }).format(parsedDate)
 }
 
 function billingModelLabel(model: ServiceBillingModel) {
@@ -78,11 +81,61 @@ function billingModelLabel(model: ServiceBillingModel) {
 export function ServiceCatalogDetailsWorkspace({ catalogHref }: ServiceCatalogDetailsWorkspaceProps) {
   const searchParams = useSearchParams()
   const serviceId = searchParams.get("serviceId")
-  const selectedService = getServiceCatalogMockById(serviceId)
+  const [selectedService, setSelectedService] = useState<ServiceCatalogItem | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [feedback, setFeedback] = useState<ComponentAlertState | null>(null)
+
+  useEffect(() => {
+    let isActive = true
+
+    async function loadServiceDetails() {
+      if (!serviceId) {
+        setSelectedService(null)
+        setFeedback(ComponentAlert.Error("Selecione um servico no catalogo para abrir os detalhes."))
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+      setFeedback(null)
+
+      try {
+        const response = await getServiceById(serviceId)
+        if (!isActive) return
+
+        setSelectedService(mapApiServiceToCatalogItem(response.data))
+      } catch (error) {
+        if (!isActive) return
+
+        const message = error instanceof Error ? error.message : "Nao foi possivel carregar o servico."
+        setSelectedService(null)
+        setFeedback(ComponentAlert.Error(message))
+      } finally {
+        if (isActive) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadServiceDetails()
+
+    return () => {
+      isActive = false
+    }
+  }, [serviceId])
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border bg-card p-8 text-center text-sm text-muted-foreground">
+        Carregando dados do servico...
+      </div>
+    )
+  }
 
   if (!selectedService) {
     return (
       <div className="rounded-2xl border bg-card p-8">
+        <AlertComponent alert={feedback} onClose={() => setFeedback(null)} className="mb-4" />
         <h1 className="text-2xl font-semibold">Servico nao encontrado</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Volte ao catalogo e selecione um servico valido.
@@ -112,7 +165,7 @@ export function ServiceCatalogDetailsWorkspace({ catalogHref }: ServiceCatalogDe
 
             <h1 className="text-3xl font-semibold tracking-tight">{selectedService.name}</h1>
             <p className="text-sm text-muted-foreground">
-              Formulario visual com dados mockados para futura integracao com backend.
+              Dados reais do catalogo de servicos da sua organizacao.
             </p>
           </div>
 
@@ -158,17 +211,7 @@ export function ServiceCatalogDetailsWorkspace({ catalogHref }: ServiceCatalogDe
             </Field>
 
             <Field label="Categoria" id="category">
-              <select
-                id="category"
-                defaultValue={selectedService.category}
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              >
-                {serviceCatalogMockCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
+              <Input id="category" defaultValue={selectedService.category} />
             </Field>
 
             <Field label="Responsavel" id="responsible">

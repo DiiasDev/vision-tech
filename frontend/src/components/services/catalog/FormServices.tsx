@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 
 import { AlertComponent, ComponentAlert, type ComponentAlertState } from "@/components/layout/AlertComponent"
+import { mapApiBillingModelToUi, mapApiStatusToUi, parseDurationToHours } from "@/components/services/catalog/catalog-mappers"
 import FormComponent, { type GenericField } from "@/components/layout/formComponent"
 import type { ServiceCatalogItem } from "@/components/services/catalog/catalog-types"
 import { createService, type CreateServicePayload } from "@/services/services.service"
@@ -18,27 +19,6 @@ function normalizeDecimal(value: string) {
   const normalized = value.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".").trim()
   const parsed = Number.parseFloat(normalized)
   return Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00"
-}
-
-function parseEstimatedDurationToHours(value: string) {
-  const normalized = value.replace(",", ".")
-  const matches = normalized.match(/(\d+(\.\d+)?)/)
-  if (!matches?.[1]) return 0
-
-  const parsed = Number.parseFloat(matches[1])
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-function mapApiStatusToUi(status: string): ServiceCatalogItem["status"] {
-  if (status === "INACTIVE") return "inactive"
-  if (status === "DRAFT") return "draft"
-  return "active"
-}
-
-function mapApiBillingModelToUi(model: string): ServiceCatalogItem["billingModel"] {
-  if (model === "PROJECT") return "project"
-  if (model === "RECURRING") return "recurring"
-  return "hourly"
 }
 
 export function FormServices({ open, onClose, onCreated, onFeedback }: FormServicesProps) {
@@ -244,7 +224,7 @@ export function FormServices({ open, onClose, onCreated, onFeedback }: FormServi
         throw new Error("A API nao retornou os dados do servico criado.")
       }
 
-      const estimatedHours = parseEstimatedDurationToHours(payload.estimated_duration)
+      const estimatedHours = parseDurationToHours(payload.estimated_duration)
 
       onCreated?.({
         id: created.id,

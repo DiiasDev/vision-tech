@@ -49,7 +49,7 @@ export class ServicesService {
     return Number.isFinite(next) && next > 0 ? next : 1;
   }
 
-  async createService(_currentUser: AuthenticatedUser, dto: createServiceDto) {
+  async createService(currentUser: AuthenticatedUser, dto: createServiceDto) {
     try {
       const baseCodeNumber = await this.getNextServiceCatalogCodeNumber();
 
@@ -73,6 +73,8 @@ export class ServicesService {
         try {
           service = await this.prisma.serviceCatalog.create({
             data: {
+              organizationId: currentUser.organizationId,
+              createdById: currentUser.userId,
               code: generatedCode,
               name: dto.name,
               description: dto.description,
@@ -152,6 +154,69 @@ export class ServicesService {
       return {
         success: false,
         message: 'Erro ao criar serviço',
+        data: null,
+      };
+    }
+  }
+
+  async getServices(currentUser: { organizationId: string }) {
+    try {
+      const services = await this.prisma.serviceCatalog.findMany({
+        orderBy: {
+          updated_at: 'desc',
+        },
+        where: {
+          organizationId: currentUser.organizationId,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Sucesso ao trazer serviços',
+        data: services,
+      };
+    } catch (error: any) {
+      console.error('erro ao trazer services: ', error);
+
+      return {
+        success: false,
+        message: 'Erro ao trazer os serviços para catálogo',
+        data: [],
+      };
+    }
+  }
+
+  async getServiceById(
+    serviceId: string,
+    currentUser: { organizationId: string },
+  ) {
+    try {
+      const service = await this.prisma.serviceCatalog.findFirst({
+        where: {
+          id: serviceId,
+          organizationId: currentUser.organizationId,
+        },
+      });
+
+      if (!service) {
+        return {
+          success: false,
+          message: 'Servico nao encontrado no catalogo.',
+          data: null,
+        };
+      }
+
+      return {
+        success: true,
+        message: 'Sucesso ao trazer servico',
+        data: service,
+      };
+    } catch (error: any) {
+      console.error('erro ao trazer service por id: ', error);
+
+      return {
+        success: false,
+        message: 'Erro ao trazer servico do catalogo',
         data: null,
       };
     }
