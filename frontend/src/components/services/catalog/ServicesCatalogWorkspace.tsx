@@ -23,6 +23,8 @@ export function ServicesCatalogWorkspace({ detailsBasePath = "/services/catalog/
   const [statusFilter, setStatusFilter] = useState<ServiceCatalogStatusFilter>("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [services, setServices] = useState<ServiceCatalogItem[]>([])
+  const [selectedServiceIds, setSelectedServiceIds] = useState<Set<string>>(new Set())
+  const [deletingServiceIds, setDeletingServiceIds] = useState<Set<string>>(new Set())
   const [isLoadingServices, setIsLoadingServices] = useState(true)
   const [showServiceForm, setShowServiceForm] = useState(false)
   const [feedback, setFeedback] = useState<ComponentAlertState | null>(null)
@@ -91,8 +93,64 @@ export function ServicesCatalogWorkspace({ detailsBasePath = "/services/catalog/
     setShowServiceForm(true)
   }
 
+  function removeServiceFromState(serviceId: string) {
+    setServices((prev) => prev.filter((service) => service.id !== serviceId))
+    setSelectedServiceIds((prev) => {
+      const next = new Set(prev)
+      next.delete(serviceId)
+      return next
+    })
+  }
+
+  async function handleDeleteServiceRequest(serviceId: string) {
+    setFeedback(ComponentAlert.Info("Removendo serviço..."))
+    setDeletingServiceIds((prev) => {
+      const next = new Set(prev)
+      next.add(serviceId)
+      return next
+    })
+
+    try {
+      removeServiceFromState(serviceId)
+      setFeedback(ComponentAlert.Success("Serviço removido da listagem."))
+    } catch {
+      setFeedback(ComponentAlert.Error("Não foi possível remover o serviço."))
+    } finally {
+      setDeletingServiceIds((prev) => {
+        const next = new Set(prev)
+        next.delete(serviceId)
+        return next
+      })
+    }
+  }
+
+  function handleDeleteService(serviceId: string) {
+    if (deletingServiceIds.has(serviceId)) return
+    void handleDeleteServiceRequest(serviceId)
+  }
+
+  function handleToggleSelection(serviceId: string, checked: boolean) {
+    setSelectedServiceIds((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(serviceId)
+      else next.delete(serviceId)
+      return next
+    })
+  }
+
+  function handleToggleAllVisible(checked: boolean) {
+    setSelectedServiceIds((prev) => {
+      const next = new Set(prev)
+      filteredServices.forEach((service) => {
+        if (checked) next.add(service.id)
+        else next.delete(service.id)
+      })
+      return next
+    })
+  }
+
   return (
-    <div className="relative space-y-8 overflow-hidden pb-4">
+    <div className="relative space-y-6 overflow-hidden pb-4">
       <div className="relative">
         <ServicesCatalogHero onAddService={handleOpenServiceForm} />
       </div>
@@ -103,28 +161,36 @@ export function ServicesCatalogWorkspace({ detailsBasePath = "/services/catalog/
         <ServicesCatalogStats services={services} />
       </div>
 
-      <div className="relative rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm md:p-5">
-        <ServicesCatalogFilters
-          searchValue={searchValue}
-          onSearchChange={setSearchValue}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-          categoryFilter={categoryFilter}
-          onCategoryFilterChange={setCategoryFilter}
-          categories={categories}
-          resultCount={filteredServices.length}
-        />
-      </div>
+      <section className="relative overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-sm">
+        <div className="border-b border-border/70 p-5">
+          <ServicesCatalogFilters
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            categoryFilter={categoryFilter}
+            onCategoryFilterChange={setCategoryFilter}
+            categories={categories}
+            resultCount={filteredServices.length}
+          />
+        </div>
 
-      <div className="relative">
         {isLoadingServices ? (
-          <div className="rounded-2xl border border-border/70 bg-card/70 px-6 py-10 text-center text-sm text-muted-foreground shadow-lg">
+          <div className="px-6 py-10 text-center text-sm text-muted-foreground">
             Carregando servicos do catalogo...
           </div>
         ) : (
-          <ServicesCatalogTable services={filteredServices} detailsBasePath={detailsBasePath} />
+          <ServicesCatalogTable
+            services={filteredServices}
+            detailsBasePath={detailsBasePath}
+            selectedServiceIds={selectedServiceIds}
+            deletingServiceIds={deletingServiceIds}
+            onToggleSelection={handleToggleSelection}
+            onToggleAll={handleToggleAllVisible}
+            onDeleteService={handleDeleteService}
+          />
         )}
-      </div>
+      </section>
 
       <FormServices
         open={showServiceForm}

@@ -1,20 +1,10 @@
-import { Activity, CircleCheckBig, ShieldCheck, Wrench } from "lucide-react"
+import { AlertTriangle, CircleCheckBig, Clock3, Wrench } from "lucide-react"
 
 import type { ServiceCatalogItem } from "@/components/services/catalog/catalog-types"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatCurrencyBR } from "@/utils/Formatter"
 
 type ServicesCatalogStatsProps = {
   services: ServiceCatalogItem[]
-}
-
-type StatsIcon = "activity" | "shield" | "check" | "wrench"
-
-function getIcon(icon: StatsIcon) {
-  if (icon === "activity") return Activity
-  if (icon === "shield") return ShieldCheck
-  if (icon === "check") return CircleCheckBig
-  return Wrench
 }
 
 export function ServicesCatalogStats({ services }: ServicesCatalogStatsProps) {
@@ -31,64 +21,60 @@ export function ServicesCatalogStats({ services }: ServicesCatalogStatsProps) {
 
   const cards = [
     {
-      label: "Servicos no Catalogo",
+      id: "total",
+      label: "Serviços no catálogo",
       value: String(totalServices),
-      helper: `${activeServices} ativo(s) para proposta imediata`,
-      tone: "text-sky-300",
-      iconTone: "text-sky-200",
-      icon: "wrench" as const,
+      helper: "Total cadastrado",
+      icon: Wrench,
+      colorClass: "text-primary",
+      bgClass: "from-primary/15 to-primary/5",
     },
     {
-      label: "Contratos Ativos",
-      value: String(activeContracts),
-      helper: "Volume total consolidado no catalogo atual",
-      tone: "text-emerald-300",
-      iconTone: "text-emerald-200",
-      icon: "activity" as const,
+      id: "active",
+      label: "Serviços ativos",
+      value: String(activeServices),
+      helper: `${totalServices > 0 ? Math.round((activeServices / totalServices) * 100) : 0}% do total`,
+      icon: CircleCheckBig,
+      colorClass: "text-emerald-600",
+      bgClass: "from-emerald-500/15 to-emerald-500/5",
     },
     {
-      label: "Ticket Medio Base",
+      id: "ticket",
+      label: "Ticket médio base",
       value: formatCurrencyBR(basePriceAverage || 0),
-      helper: "Referencia inicial para negociacao comercial",
-      tone: "text-violet-300",
-      iconTone: "text-violet-200",
-      icon: "shield" as const,
+      helper: "Referência comercial",
+      icon: Clock3,
+      colorClass: "text-amber-600",
+      bgClass: "from-amber-500/15 to-amber-500/5",
     },
     {
-      label: "SLA Critico (<=8h)",
+      id: "critical-sla",
+      label: "SLA crítico (<= 8h)",
       value: String(criticalSlaServices),
-      helper: "Servicos com maior exigencia operacional",
-      tone: "text-amber-300",
-      iconTone: "text-amber-200",
-      icon: "check" as const,
+      helper: `${activeContracts} contrato(s) ativos`,
+      icon: AlertTriangle,
+      colorClass: "text-rose-600",
+      bgClass: "from-rose-500/15 to-rose-500/5",
     },
   ]
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {cards.map((card) => {
-        const Icon = getIcon(card.icon)
+    <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {cards.map((card) => (
+        <article key={card.id} className="rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-muted-foreground">{card.label}</p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight">{card.value}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{card.helper}</p>
+            </div>
 
-        return (
-          <Card
-            key={card.label}
-            className="gap-4 border-border/70 bg-gradient-to-b from-background/90 to-background/40 shadow-[0_0_0_1px_hsl(var(--background))_inset]"
-          >
-            <CardHeader className="flex-row items-start justify-between space-y-0 pb-0">
-              <div>
-                <CardDescription className="text-xs uppercase tracking-[0.18em] text-muted-foreground/80">
-                  {card.label}
-                </CardDescription>
-                <CardTitle className={`mt-3 text-3xl font-semibold tracking-tight ${card.tone}`}>{card.value}</CardTitle>
-              </div>
-              <div className="rounded-lg border border-border/70 bg-muted/45 p-2.5">
-                <Icon className={`h-5 w-5 stroke-[2.2] ${card.iconTone}`} />
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 text-sm text-muted-foreground">{card.helper}</CardContent>
-          </Card>
-        )
-      })}
-    </div>
+            <div className={`rounded-xl bg-gradient-to-br p-2.5 ${card.bgClass}`}>
+              <card.icon className={`h-4 w-4 ${card.colorClass}`} />
+            </div>
+          </div>
+        </article>
+      ))}
+    </section>
   )
 }
