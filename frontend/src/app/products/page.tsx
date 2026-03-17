@@ -1,17 +1,17 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Search } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 
 import { AlertComponent, ComponentAlert, type ComponentAlertState } from "@/components/layout/AlertComponent"
 import { type Product } from "@/components/products/productsMock"
 import { deleteProduct, getProductCodes, getProducts, type ProductsListItem } from "@/services/products.service"
 
 import { CatalogHeader } from "@/components/products/CatalogHeader"
-import { FormProducts } from "@/components/products/FormProducts"
-import { ProductSpreadsheetActions } from "@/components/products/ProductSpreadsheetActions"
 import { CatalogStats } from "@/components/products/CatalogStats"
-import { ProductGrid } from "@/components/products/ProductGrid"
-import { ProductSearch } from "@/components/products/ProductSearch"
+import { FormProducts } from "@/components/products/FormProducts"
+import { ProductsTable } from "@/components/products/ProductsTable"
+import { Input } from "@/components/ui/input"
 
 function mapApiStatusToUi(status: ProductsListItem["status"]): Product["status"] {
   if (status === "INACTIVE") return "inactive"
@@ -60,7 +60,6 @@ function mapApiProductToUi(product: ProductsListItem): Product {
 
 export default function ProductsCatalogPage() {
   const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "out_of_stock">("all")
   const [products, setProducts] = useState<Product[]>([])
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set())
   const [showProductForm, setShowProductForm] = useState(false)
@@ -92,29 +91,22 @@ export default function ProductsCatalogPage() {
   }
 
   useEffect(() => {
-    void getProducts()
-      .then((response) => {
-        const mappedProducts = response.data.map(mapApiProductToUi)
-        setProducts(mappedProducts)
-        setProductCodes(mappedProducts.map((item) => item.code))
-      })
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : "Nao foi possivel carregar os produtos."
-        setFeedback(ComponentAlert.Error(message))
-      })
+    void refreshProducts()
   }, [])
 
-  const filteredProducts = products.filter((product) => {
-    const searchValue = search.toLowerCase()
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchValue) ||
-      product.code.toLowerCase().includes(searchValue) ||
-      product.supplier.toLowerCase().includes(searchValue)
+  const filteredProducts = useMemo(() => {
+    const searchValue = search.trim().toLowerCase()
+    if (!searchValue) return products
 
-    if (statusFilter === "all") return matchesSearch
-
-    return matchesSearch && product.status === statusFilter
-  })
+    return products.filter((product) => {
+      return (
+        product.name.toLowerCase().includes(searchValue) ||
+        product.code.toLowerCase().includes(searchValue) ||
+        product.supplier.toLowerCase().includes(searchValue) ||
+        product.category.toLowerCase().includes(searchValue)
+      )
+    })
+  }, [products, search])
 
   function removeProductFromState(productId: string) {
     setProducts((prev) => prev.filter((product) => product.id !== productId))
@@ -164,16 +156,17 @@ export default function ProductsCatalogPage() {
     })
   }
 
-  function handleSelectAll() {
-    setSelectedProductIds(new Set(products.map((product) => product.id)))
-  }
+  function handleToggleAllVisible(checked: boolean) {
+    setSelectedProductIds((prev) => {
+      const next = new Set(prev)
 
-  function handleClearSelection() {
-    setSelectedProductIds(new Set())
-  }
+      filteredProducts.forEach((product) => {
+        if (checked) next.add(product.id)
+        else next.delete(product.id)
+      })
 
-  function handleImportProducts(importedProducts: Product[]) {
-    setProducts((prev) => [...importedProducts, ...prev])
+      return next
+    })
   }
 
   function handleOpenProductForm() {
@@ -183,7 +176,7 @@ export default function ProductsCatalogPage() {
   }
 
   return (
-    <div className="relative space-y-8 overflow-hidden pb-4">
+    <div className="relative space-y-6 overflow-hidden pb-4">
       <div className="relative">
         <CatalogHeader onAddProduct={handleOpenProductForm} />
       </div>
@@ -194,32 +187,28 @@ export default function ProductsCatalogPage() {
         <CatalogStats products={products} />
       </div>
 
-      <ProductSpreadsheetActions
-        products={products}
-        selectedProductIds={selectedProductIds}
-        onSelectAll={handleSelectAll}
-        onClearSelection={handleClearSelection}
-        onImportProducts={handleImportProducts}
-      />
+      <section className="overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-sm">
+        <div className="border-b border-border/70 p-5">
+          <div className="relative max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar produtos..."
+              className="h-10 rounded-xl border-border/70 bg-background pl-10"
+            />
+          </div>
+        </div>
 
-      <div className="relative rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm md:p-5">
-        <ProductSearch
-          onSearch={setSearch}
-          statusFilter={statusFilter}
-          onStatusChange={setStatusFilter}
-          resultCount={filteredProducts.length}
-        />
-      </div>
-
-      <div className="relative">
-        <ProductGrid
+        <ProductsTable
           products={filteredProducts}
-          onDelete={handleDeleteProduct}
-          deletingProductIds={deletingProductIds}
           selectedProductIds={selectedProductIds}
           onToggleSelection={handleToggleSelection}
+          onToggleAll={handleToggleAllVisible}
+          onDelete={handleDeleteProduct}
+          deletingProductIds={deletingProductIds}
         />
-      </div>
+      </section>
 
       <FormProducts
         open={showProductForm}
