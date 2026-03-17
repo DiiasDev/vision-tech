@@ -1,6 +1,6 @@
 "use client"
 
-import { Settings2 } from "lucide-react"
+import { Settings } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -58,7 +58,7 @@ export function TableFieldSelector<FieldKey extends string = string>({
           className="h-8 w-8 rounded-lg"
           aria-label="Configurar colunas da tabela"
         >
-          <Settings2 className="h-4 w-4" />
+          <Settings className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
 

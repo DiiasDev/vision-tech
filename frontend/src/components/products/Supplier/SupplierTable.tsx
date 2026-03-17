@@ -1,13 +1,12 @@
 "use client"
 
 import { useState, useSyncExternalStore } from "react"
-import Image from "next/image"
 import Link from "next/link"
 import { Eye, MoreHorizontal, PencilLine, Trash2 } from "lucide-react"
 
 import { TableFieldSelector, type TableFieldOption } from "@/components/layout/TableFieldSelector"
-import { ProductDetailsDialog } from "@/components/products/ProductDetailsDialog"
-import { type Product } from "@/components/products/productsMock"
+import { SupplierDetailsDialog } from "@/components/products/Supplier/SupplierDetailsDialog"
+import { type Supplier } from "@/components/products/Supplier/supplier-models"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -19,139 +18,88 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
-import { formatPriceOrCostBR } from "@/utils/Formatter"
 
-type ProductFieldKey =
-  | "image"
-  | "id"
-  | "name"
+type SupplierFieldKey =
   | "code"
-  | "description"
-  | "category"
-  | "brand"
-  | "supplier"
-  | "price"
-  | "cost"
-  | "percentage"
-  | "stock"
-  | "minStock"
-  | "unitOfMeasure"
-  | "location"
+  | "name"
+  | "fantasyName"
+  | "segment"
+  | "categories"
   | "status"
-  | "monthlySales"
-  | "createdBy"
-  | "createdAt"
-  | "updatedAt"
+  | "risk"
+  | "lead"
+  | "city"
+  | "state"
+  | "location"
+  | "contact"
+  | "phone"
+  | "email"
+  | "minRequest"
+  | "lastDelivery"
 
 const MAX_VISIBLE_FIELDS = 8
 const MIN_VISIBLE_FIELDS = 2
-const VISIBLE_FIELDS_STORAGE_KEY = "vision-tech:products:table-visible-fields:v1"
-const VISIBLE_FIELDS_STORAGE_EVENT = "vision-tech:products:table-visible-fields:changed"
+const VISIBLE_FIELDS_STORAGE_KEY = "vision-tech:suppliers:table-visible-fields:v1"
+const VISIBLE_FIELDS_STORAGE_EVENT = "vision-tech:suppliers:table-visible-fields:changed"
 
-const PRODUCT_FIELD_OPTIONS: ReadonlyArray<TableFieldOption<ProductFieldKey>> = [
-  { key: "image", label: "Imagem" },
-  { key: "id", label: "ID" },
-  { key: "name", label: "Nome" },
+const SUPPLIER_FIELD_OPTIONS: ReadonlyArray<TableFieldOption<SupplierFieldKey>> = [
   { key: "code", label: "Código" },
-  { key: "description", label: "Descrição" },
-  { key: "category", label: "Categoria" },
-  { key: "brand", label: "Marca" },
-  { key: "supplier", label: "Fornecedor" },
-  { key: "price", label: "Preço de venda" },
-  { key: "cost", label: "Custo" },
-  { key: "percentage", label: "Margem" },
-  { key: "stock", label: "Estoque atual" },
-  { key: "minStock", label: "Estoque mínimo" },
-  { key: "unitOfMeasure", label: "Unidade" },
-  { key: "location", label: "Localização" },
+  { key: "name", label: "Nome" },
+  { key: "fantasyName", label: "Nome fantasia" },
+  { key: "segment", label: "Segmento" },
+  { key: "categories", label: "Categoria" },
   { key: "status", label: "Status" },
-  { key: "monthlySales", label: "Vendas mensais" },
-  { key: "createdBy", label: "Criado por" },
-  { key: "createdAt", label: "Criado em" },
-  { key: "updatedAt", label: "Atualizado em" },
+  { key: "risk", label: "Risco" },
+  { key: "lead", label: "Lead time" },
+  { key: "city", label: "Cidade" },
+  { key: "state", label: "UF" },
+  { key: "location", label: "Localização" },
+  { key: "contact", label: "Contato" },
+  { key: "phone", label: "Telefone" },
+  { key: "email", label: "Email" },
+  { key: "minRequest", label: "Pedido mínimo" },
+  { key: "lastDelivery", label: "Última entrega" },
 ]
 
-const DEFAULT_VISIBLE_FIELDS: ProductFieldKey[] = ["image", "name", "category", "price", "stock", "status"]
-const ALLOWED_FIELD_KEYS = new Set<ProductFieldKey>(PRODUCT_FIELD_OPTIONS.map((item) => item.key))
+const DEFAULT_VISIBLE_FIELDS: SupplierFieldKey[] = ["name", "segment", "city", "status", "risk", "lead"]
+const ALLOWED_FIELD_KEYS = new Set<SupplierFieldKey>(SUPPLIER_FIELD_OPTIONS.map((item) => item.key))
 let cachedVisibleFieldsRaw: string | null = null
-let cachedVisibleFieldsSnapshot: ProductFieldKey[] = DEFAULT_VISIBLE_FIELDS
+let cachedVisibleFieldsSnapshot: SupplierFieldKey[] = DEFAULT_VISIBLE_FIELDS
 
-type Props = {
-  products: Product[]
-  deletingProductIds: Set<string>
-  selectedProductIds: Set<string>
-  onToggleSelection: (productId: string, checked: boolean) => void
+type SupplierTableProps = {
+  suppliers: Supplier[]
+  deletingSupplierIds: Set<string>
+  selectedSupplierIds: Set<string>
+  onToggleSelection: (supplierId: string, checked: boolean) => void
   onToggleAll: (checked: boolean) => void
-  onDelete: (productId: string) => void
+  onDeleteSupplier: (supplierId: string) => void
 }
 
-function getStatusBadge(product: Product) {
-  if (product.status === "out_of_stock" || product.stock <= 0) {
-    return {
-      label: "Sem estoque",
-      className: "border-rose-200 bg-rose-50 text-rose-700",
-    }
-  }
-
-  if (product.status === "inactive") {
-    return {
-      label: "Inativo",
-      className: "border-zinc-200 bg-zinc-100 text-zinc-700",
-    }
-  }
-
-  if (product.stock <= product.minStock) {
-    return {
-      label: "Estoque baixo",
-      className: "border-amber-200 bg-amber-50 text-amber-700",
-    }
-  }
-
-  return {
-    label: "Em estoque",
-    className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  }
+function normalizeValue(value: string) {
+  return value.trim().toLocaleLowerCase("pt-BR")
 }
 
-function getSafeImageSrc(imageUrl?: string) {
-  if (!imageUrl) return "/product.png"
-  if (imageUrl.startsWith("/") || imageUrl.startsWith("data:")) return imageUrl
-  return "/product.png"
+function buildRiskStyle(risk: string) {
+  const normalizedRisk = normalizeValue(risk)
+  if (normalizedRisk === "alto") return "border-red-300/60 bg-red-100/65 text-red-700"
+  if (normalizedRisk === "medio") return "border-amber-300/60 bg-amber-100/65 text-amber-700"
+  return "border-emerald-300/60 bg-emerald-100/65 text-emerald-700"
 }
 
-function formatDate(value: string) {
-  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
-  if (dateOnlyMatch) {
-    const year = Number.parseInt(dateOnlyMatch[1], 10)
-    const month = Number.parseInt(dateOnlyMatch[2], 10)
-    const day = Number.parseInt(dateOnlyMatch[3], 10)
-    const localDate = new Date(year, month - 1, day, 12, 0, 0)
-
-    return new Intl.DateTimeFormat("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(localDate)
-  }
-
-  const parsedDate = new Date(value)
-  if (Number.isNaN(parsedDate.getTime())) return value
-
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsedDate)
+function buildStatusStyle(status: string) {
+  const normalizedStatus = normalizeValue(status)
+  if (normalizedStatus === "ativo") return "border-sky-300/60 bg-sky-100/65 text-sky-700"
+  if (normalizedStatus === "avaliacao") return "border-violet-300/60 bg-violet-100/65 text-violet-700"
+  return "border-slate-300/60 bg-slate-200/75 text-slate-700"
 }
 
-function normalizeVisibleFields(value: unknown): ProductFieldKey[] {
+function normalizeVisibleFields(value: unknown): SupplierFieldKey[] {
   if (!Array.isArray(value)) return DEFAULT_VISIBLE_FIELDS
 
-  const normalized: ProductFieldKey[] = []
-
+  const normalized: SupplierFieldKey[] = []
   for (const item of value) {
     if (typeof item !== "string") continue
-    const key = item as ProductFieldKey
+    const key = item as SupplierFieldKey
     if (!ALLOWED_FIELD_KEYS.has(key)) continue
     if (normalized.includes(key)) continue
 
@@ -206,7 +154,7 @@ function subscribeVisibleFields(onStoreChange: () => void) {
   }
 }
 
-function persistVisibleFields(fields: ProductFieldKey[]) {
+function persistVisibleFields(fields: SupplierFieldKey[]) {
   try {
     window.localStorage.setItem(VISIBLE_FIELDS_STORAGE_KEY, JSON.stringify(fields))
     window.dispatchEvent(new Event(VISIBLE_FIELDS_STORAGE_EVENT))
@@ -215,32 +163,32 @@ function persistVisibleFields(fields: ProductFieldKey[]) {
   }
 }
 
-export function ProductsTable({
-  products,
-  deletingProductIds,
-  selectedProductIds,
+export function SupplierTable({
+  suppliers,
+  deletingSupplierIds,
+  selectedSupplierIds,
   onToggleSelection,
   onToggleAll,
-  onDelete,
-}: Props) {
-  const [detailsProduct, setDetailsProduct] = useState<Product | null>(null)
+  onDeleteSupplier,
+}: SupplierTableProps) {
+  const [detailsSupplier, setDetailsSupplier] = useState<Supplier | null>(null)
   const visibleFields = useSyncExternalStore(
     subscribeVisibleFields,
     readStoredVisibleFields,
     () => DEFAULT_VISIBLE_FIELDS
   )
-  const [draggingField, setDraggingField] = useState<ProductFieldKey | null>(null)
-  const [dropTargetField, setDropTargetField] = useState<ProductFieldKey | null>(null)
-  const allSelected = products.length > 0 && products.every((product) => selectedProductIds.has(product.id))
-  const hasSelected = products.some((product) => selectedProductIds.has(product.id))
+  const [draggingField, setDraggingField] = useState<SupplierFieldKey | null>(null)
+  const [dropTargetField, setDropTargetField] = useState<SupplierFieldKey | null>(null)
+  const allSelected = suppliers.length > 0 && suppliers.every((supplier) => selectedSupplierIds.has(supplier.id))
+  const hasSelected = suppliers.some((supplier) => selectedSupplierIds.has(supplier.id))
 
-  function updateVisibleFields(next: ProductFieldKey[] | ((prev: ProductFieldKey[]) => ProductFieldKey[])) {
+  function updateVisibleFields(next: SupplierFieldKey[] | ((prev: SupplierFieldKey[]) => SupplierFieldKey[])) {
     const currentFields = readStoredVisibleFields()
     const nextFields = typeof next === "function" ? next(currentFields) : next
     persistVisibleFields(normalizeVisibleFields(nextFields))
   }
 
-  function moveFieldByDrag(sourceField: ProductFieldKey, targetField: ProductFieldKey) {
+  function moveFieldByDrag(sourceField: SupplierFieldKey, targetField: SupplierFieldKey) {
     if (sourceField === targetField) return
 
     updateVisibleFields((prev) => {
@@ -261,165 +209,111 @@ export function ProductsTable({
     setDropTargetField(null)
   }
 
-  function renderFieldCell(product: Product, field: ProductFieldKey) {
-    const status = getStatusBadge(product)
-
+  function renderFieldCell(supplier: Supplier, field: SupplierFieldKey) {
     switch (field) {
-      case "image":
-        return (
-          <TableCell key={`${product.id}-${field}`}>
-            <div className="h-10 w-10 overflow-hidden rounded-lg border border-border/70 bg-background">
-              <Image
-                src={getSafeImageSrc(product.imageUrl)}
-                alt={product.name}
-                width={40}
-                height={40}
-                className="h-full w-full object-cover"
-              />
-            </div>
-          </TableCell>
-        )
-
-      case "id":
-        return (
-          <TableCell key={`${product.id}-${field}`}>
-            <span className="block max-w-[14rem] break-all text-sm text-muted-foreground">{product.id}</span>
-          </TableCell>
-        )
-
-      case "name":
-        return (
-          <TableCell key={`${product.id}-${field}`} className="font-semibold text-foreground">
-            {product.name}
-          </TableCell>
-        )
-
       case "code":
         return (
-          <TableCell key={`${product.id}-${field}`} className="font-medium text-foreground">
-            {product.code}
+          <TableCell key={`${supplier.id}-${field}`} className="font-medium">
+            {supplier.code}
           </TableCell>
         )
-
-      case "description":
+      case "name":
         return (
-          <TableCell key={`${product.id}-${field}`}>
-            <span className="block max-w-[18rem] whitespace-normal break-words text-sm text-muted-foreground">
-              {product.description || "-"}
-            </span>
+          <TableCell key={`${supplier.id}-${field}`} className="font-semibold text-foreground">
+            {supplier.name}
           </TableCell>
         )
-
-      case "category":
+      case "fantasyName":
         return (
-          <TableCell key={`${product.id}-${field}`} className="text-muted-foreground">
-            {product.category}
+          <TableCell key={`${supplier.id}-${field}`} className="text-muted-foreground">
+            {supplier.fantasyName}
           </TableCell>
         )
-
-      case "brand":
+      case "segment":
         return (
-          <TableCell key={`${product.id}-${field}`} className="text-muted-foreground">
-            {product.brand || "-"}
+          <TableCell key={`${supplier.id}-${field}`} className="text-muted-foreground">
+            {supplier.segment}
           </TableCell>
         )
-
-      case "supplier":
+      case "categories":
         return (
-          <TableCell key={`${product.id}-${field}`} className="text-muted-foreground">
-            {product.supplier || "-"}
+          <TableCell key={`${supplier.id}-${field}`} className="text-muted-foreground">
+            <span className="block max-w-[18rem] whitespace-normal break-words">{supplier.categories || "-"}</span>
           </TableCell>
         )
-
-      case "price":
-        return (
-          <TableCell key={`${product.id}-${field}`} className="font-medium">
-            {formatPriceOrCostBR(product.price)}
-          </TableCell>
-        )
-
-      case "cost":
-        return (
-          <TableCell key={`${product.id}-${field}`} className="font-medium">
-            {formatPriceOrCostBR(product.cost)}
-          </TableCell>
-        )
-
-      case "percentage":
-        return (
-          <TableCell key={`${product.id}-${field}`} className="font-medium">
-            {product.percentage}%
-          </TableCell>
-        )
-
-      case "stock":
-        return (
-          <TableCell key={`${product.id}-${field}`} className="font-medium">
-            {product.stock}
-          </TableCell>
-        )
-
-      case "minStock":
-        return (
-          <TableCell key={`${product.id}-${field}`} className="font-medium">
-            {product.minStock}
-          </TableCell>
-        )
-
-      case "unitOfMeasure":
-        return (
-          <TableCell key={`${product.id}-${field}`} className="font-medium">
-            {product.unitOfMeasure || "-"}
-          </TableCell>
-        )
-
-      case "location":
-        return (
-          <TableCell key={`${product.id}-${field}`} className="text-muted-foreground">
-            {product.location || "-"}
-          </TableCell>
-        )
-
       case "status":
         return (
-          <TableCell key={`${product.id}-${field}`}>
-            <Badge variant="outline" className={status.className}>
-              {status.label}
+          <TableCell key={`${supplier.id}-${field}`}>
+            <Badge variant="outline" className={buildStatusStyle(supplier.status)}>
+              {supplier.status}
             </Badge>
           </TableCell>
         )
-
-      case "monthlySales":
+      case "risk":
         return (
-          <TableCell key={`${product.id}-${field}`} className="font-medium">
-            {product.monthlySales}
+          <TableCell key={`${supplier.id}-${field}`}>
+            <Badge variant="outline" className={buildRiskStyle(supplier.risk)}>
+              {supplier.risk}
+            </Badge>
           </TableCell>
         )
-
-      case "createdBy":
+      case "lead":
         return (
-          <TableCell key={`${product.id}-${field}`} className="text-muted-foreground">
-            {product.createdBy || "-"}
+          <TableCell key={`${supplier.id}-${field}`} className="text-muted-foreground">
+            {supplier.lead || "-"}
           </TableCell>
         )
-
-      case "createdAt":
+      case "city":
         return (
-          <TableCell key={`${product.id}-${field}`} className="text-muted-foreground">
-            {formatDate(product.createdAt)}
+          <TableCell key={`${supplier.id}-${field}`} className="text-muted-foreground">
+            {supplier.city}
           </TableCell>
         )
-
-      case "updatedAt":
+      case "state":
         return (
-          <TableCell key={`${product.id}-${field}`} className="text-muted-foreground">
-            {formatDate(product.updatedAt)}
+          <TableCell key={`${supplier.id}-${field}`} className="text-muted-foreground">
+            {supplier.state}
           </TableCell>
         )
-
+      case "location":
+        return (
+          <TableCell key={`${supplier.id}-${field}`} className="text-muted-foreground">
+            <span className="block max-w-[16rem] whitespace-normal break-words">{supplier.location || "-"}</span>
+          </TableCell>
+        )
+      case "contact":
+        return (
+          <TableCell key={`${supplier.id}-${field}`} className="text-muted-foreground">
+            {supplier.contact || "-"}
+          </TableCell>
+        )
+      case "phone":
+        return (
+          <TableCell key={`${supplier.id}-${field}`} className="text-muted-foreground">
+            {supplier.phone || "-"}
+          </TableCell>
+        )
+      case "email":
+        return (
+          <TableCell key={`${supplier.id}-${field}`} className="text-muted-foreground">
+            {supplier.email || "-"}
+          </TableCell>
+        )
+      case "minRequest":
+        return (
+          <TableCell key={`${supplier.id}-${field}`} className="text-muted-foreground">
+            {supplier.minRequest || "-"}
+          </TableCell>
+        )
+      case "lastDelivery":
+        return (
+          <TableCell key={`${supplier.id}-${field}`} className="text-muted-foreground">
+            {supplier.lastDelivery || "-"}
+          </TableCell>
+        )
       default:
         return (
-          <TableCell key={`${product.id}-${field}`} className="text-muted-foreground">
+          <TableCell key={`${supplier.id}-${field}`} className="text-muted-foreground">
             -
           </TableCell>
         )
@@ -435,12 +329,13 @@ export function ProductsTable({
               <Checkbox
                 checked={allSelected ? true : hasSelected ? "indeterminate" : false}
                 onCheckedChange={(checked) => onToggleAll(Boolean(checked))}
-                aria-label="Selecionar todos os produtos"
+                aria-label="Selecionar todos os fornecedores"
                 className="size-5 border-2 border-primary/45 bg-background shadow-sm data-[state=checked]:border-primary data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary"
               />
             </TableHead>
+
             {visibleFields.map((field) => {
-              const fieldLabel = PRODUCT_FIELD_OPTIONS.find((item) => item.key === field)?.label ?? field
+              const fieldLabel = SUPPLIER_FIELD_OPTIONS.find((item) => item.key === field)?.label ?? field
               return (
                 <TableHead
                   key={field}
@@ -470,12 +365,13 @@ export function ProductsTable({
                 </TableHead>
               )
             })}
+
             <TableHead className="w-[156px] px-3 text-center">
               <div className="relative flex items-center justify-center">
                 <span className="block w-full text-center">Ações</span>
                 <div className="absolute right-0 top-1/2 -translate-y-1/2">
                   <TableFieldSelector
-                    fields={PRODUCT_FIELD_OPTIONS}
+                    fields={SUPPLIER_FIELD_OPTIONS}
                     selectedFields={visibleFields}
                     onSelectionChange={(fields) => updateVisibleFields(fields)}
                     maxSelected={MAX_VISIBLE_FIELDS}
@@ -488,46 +384,46 @@ export function ProductsTable({
         </TableHeader>
 
         <TableBody>
-          {products.length === 0 ? (
+          {suppliers.length === 0 ? (
             <TableRow>
               <TableCell colSpan={2 + visibleFields.length} className="px-6 py-12 text-center text-sm text-muted-foreground">
-                Nenhum produto encontrado para os filtros atuais.
+                Nenhum fornecedor encontrado para os filtros atuais.
               </TableCell>
             </TableRow>
           ) : (
-            products.map((product) => {
-              const isDeleting = deletingProductIds.has(product.id)
+            suppliers.map((supplier) => {
+              const isDeleting = deletingSupplierIds.has(supplier.id)
 
               return (
-                <TableRow key={product.id}>
+                <TableRow key={supplier.id}>
                   <TableCell className="pl-6">
                     <Checkbox
-                      checked={selectedProductIds.has(product.id)}
-                      onCheckedChange={(checked) => onToggleSelection(product.id, Boolean(checked))}
-                      aria-label={`Selecionar ${product.name}`}
+                      checked={selectedSupplierIds.has(supplier.id)}
+                      onCheckedChange={(checked) => onToggleSelection(supplier.id, Boolean(checked))}
+                      aria-label={`Selecionar ${supplier.name}`}
                       className="size-5 border-2 border-primary/45 bg-background shadow-sm data-[state=checked]:border-primary"
                     />
                   </TableCell>
 
-                  {visibleFields.map((field) => renderFieldCell(product, field))}
+                  {visibleFields.map((field) => renderFieldCell(supplier, field))}
 
                   <TableCell className="w-[156px] px-3 text-center">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button type="button" variant="ghost" size="icon-sm" className="mx-auto h-8 w-8 rounded-lg">
                           <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Abrir ações de {product.name}</span>
+                          <span className="sr-only">Abrir ações de {supplier.name}</span>
                         </Button>
                       </DropdownMenuTrigger>
 
                       <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5">
-                        <DropdownMenuItem className="rounded-lg" onSelect={() => setDetailsProduct(product)}>
+                        <DropdownMenuItem className="rounded-lg" onSelect={() => setDetailsSupplier(supplier)}>
                           <Eye className="h-4 w-4" />
                           Ver detalhes
                         </DropdownMenuItem>
 
                         <DropdownMenuItem asChild className="rounded-lg">
-                          <Link href={`/products/id?productId=${product.id}&mode=edit`}>
+                          <Link href={`/dashboard/produtos/fornecedores/id?supplierId=${supplier.id}`}>
                             <PencilLine className="h-4 w-4" />
                             Editar
                           </Link>
@@ -537,7 +433,7 @@ export function ProductsTable({
                           variant="destructive"
                           className="rounded-lg"
                           disabled={isDeleting}
-                          onSelect={() => onDelete(product.id)}
+                          onSelect={() => onDeleteSupplier(supplier.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                           {isDeleting ? "Excluindo..." : "Excluir"}
@@ -552,11 +448,11 @@ export function ProductsTable({
         </TableBody>
       </Table>
 
-      <ProductDetailsDialog
-        product={detailsProduct}
-        open={Boolean(detailsProduct)}
+      <SupplierDetailsDialog
+        supplier={detailsSupplier}
+        open={Boolean(detailsSupplier)}
         onOpenChange={(open) => {
-          if (!open) setDetailsProduct(null)
+          if (!open) setDetailsSupplier(null)
         }}
       />
     </>
