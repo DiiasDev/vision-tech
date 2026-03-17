@@ -30,7 +30,7 @@ export function AgendaTopControls({
   onJumpToToday,
 }: AgendaTopControlsProps) {
   return (
-    <section className="rounded-2xl border border-border/70 bg-card/70 p-4 shadow-sm backdrop-blur-sm md:p-5">
+    <section className="rounded-2xl border border-border/80 bg-card/95 p-4 shadow-sm md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-3">
           <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -50,8 +50,8 @@ export function AgendaTopControls({
                   className={cn(
                     "rounded-xl border px-3 py-2 text-left transition-colors",
                     isActive
-                      ? "border-cyan-500/45 bg-cyan-500/10 text-cyan-700 shadow-sm dark:text-cyan-300"
-                      : "border-border/80 bg-background/60 text-muted-foreground hover:border-cyan-500/35 hover:text-foreground"
+                      ? "border-primary/45 bg-primary/10 text-primary shadow-sm"
+                      : "border-border/80 bg-background/60 text-muted-foreground hover:border-primary/35 hover:text-foreground"
                   )}
                 >
                   <p className="text-sm font-medium">{filter.label}</p>
@@ -62,7 +62,7 @@ export function AgendaTopControls({
           </div>
         </div>
 
-        <div className="grid min-w-[230px] gap-2 rounded-xl border border-border/80 bg-background/70 p-3 text-sm">
+        <div className="grid min-w-[230px] gap-2 rounded-xl border border-border/80 bg-muted/25 p-3 text-sm">
           <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Contexto ativo</p>
           <p className="font-medium text-foreground">Equipe: {selectedTechnicianLabel}</p>
           <p className="text-muted-foreground">{visibleServicesCount} ordens visiveis no filtro atual.</p>

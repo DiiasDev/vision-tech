@@ -175,11 +175,11 @@ export function TechnicalAgendaWorkspace() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
-      <div className="pointer-events-none absolute -left-24 top-32 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
-      <div className="pointer-events-none absolute right-0 top-1/3 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
+    <div className="relative space-y-6 overflow-hidden pb-4">
+      <div className="pointer-events-none absolute -left-24 top-16 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+      <div className="pointer-events-none absolute -right-16 top-1/4 h-72 w-72 rounded-full bg-accent/80 blur-3xl" />
 
-      <div className="relative mx-auto w-full space-y-6 px-4 py-5 md:px-6 md:py-6 xl:px-8 xl:py-8">
+      <div className="relative space-y-6">
         <AgendaHero
           monthLabel={monthLabel}
           totalMonthServices={monthServices.length}

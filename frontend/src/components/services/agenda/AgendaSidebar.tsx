@@ -56,8 +56,8 @@ export function AgendaSidebar({
                 className={cn(
                   "w-full rounded-xl border px-3 py-3 text-left transition-colors",
                   isActive
-                    ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
-                    : "border-border/70 bg-background/60 text-foreground hover:border-cyan-500/35"
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border/70 bg-background/60 text-foreground hover:border-primary/35"
                 )}
               >
                 <span className="flex items-center gap-2 text-sm font-medium">
@@ -80,8 +80,8 @@ export function AgendaSidebar({
           className={cn(
             "mt-3 flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm transition-colors",
             selectedTechnicianId === "all"
-              ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
-              : "border-border/70 bg-background/60 hover:border-cyan-500/35"
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border/70 bg-background/60 hover:border-primary/35"
           )}
         >
           <span>Todos os tecnicos</span>
@@ -102,15 +102,18 @@ export function AgendaSidebar({
                 className={cn(
                   "w-full rounded-xl border p-3 text-left transition-colors",
                   isSelected
-                    ? "border-cyan-500/45 bg-cyan-500/10"
-                    : "border-border/70 bg-background/60 hover:border-cyan-500/35"
+                    ? "border-primary/45 bg-primary/10"
+                    : "border-border/70 bg-background/60 hover:border-primary/35"
                 )}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold text-slate-950"
-                      style={{ backgroundColor: technician.accent }}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/25 text-xs font-semibold shadow-sm"
+                      style={{
+                        backgroundColor: technician.accent,
+                        color: technician.accentForeground,
+                      }}
                     >
                       {technician.initials}
                     </span>

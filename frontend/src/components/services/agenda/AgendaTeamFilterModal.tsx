@@ -60,7 +60,11 @@ export function AgendaTeamFilterModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+      style={{ backgroundColor: "color-mix(in oklab, var(--background) 30%, black 70%)" }}
+      onClick={onClose}
+    >
       <div
         className="max-h-[88vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
         onClick={(event) => event.stopPropagation()}
@@ -72,7 +76,7 @@ export function AgendaTeamFilterModal({
           <div>
             <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Filtro de equipe</p>
             <h3 className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight text-foreground">
-              <UsersRound className="h-5 w-5 text-cyan-500" />
+              <UsersRound className="h-5 w-5 text-primary" />
               Escolha os tecnicos exibidos na agenda
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -94,8 +98,8 @@ export function AgendaTeamFilterModal({
             className={cn(
               "w-full rounded-xl border p-3 text-left transition-colors",
               selectedCount === 0
-                ? "border-cyan-500/45 bg-cyan-500/10"
-                : "border-border/70 bg-background/60 hover:border-cyan-500/35"
+                ? "border-primary/45 bg-primary/10"
+                : "border-border/70 bg-background/60 hover:border-primary/35"
             )}
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -125,12 +129,12 @@ export function AgendaTeamFilterModal({
                   className={cn(
                     "relative w-full rounded-xl border p-3 text-left transition-colors",
                     isSelected
-                      ? "border-cyan-500/45 bg-cyan-500/10"
-                      : "border-border/70 bg-background/60 hover:border-cyan-500/35"
+                      ? "border-primary/45 bg-primary/10"
+                      : "border-border/70 bg-background/60 hover:border-primary/35"
                   )}
                 >
                   {isSelected ? (
-                    <span className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-cyan-500 text-cyan-950">
+                    <span className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
                       <Check className="h-4 w-4" />
                     </span>
                   ) : null}
@@ -138,8 +142,11 @@ export function AgendaTeamFilterModal({
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-slate-950"
-                        style={{ backgroundColor: technician.accent }}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/25 text-sm font-semibold shadow-sm"
+                        style={{
+                          backgroundColor: technician.accent,
+                          color: technician.accentForeground,
+                        }}
                       >
                         {technician.initials}
                       </span>

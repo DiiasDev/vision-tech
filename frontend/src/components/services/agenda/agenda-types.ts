@@ -16,6 +16,7 @@ export type AgendaTechnician = {
   base: string
   availability: AgendaTechnicianAvailability
   accent: string
+  accentForeground: string
 }
 
 export type AgendaService = {

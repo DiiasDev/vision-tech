@@ -31,23 +31,19 @@ export const agendaStatusMeta: Record<
 > = {
   confirmado: {
     label: "Confirmado",
-    chipClassName:
-      "border-sky-500/35 bg-sky-500/10 text-sky-700 dark:text-sky-300",
+    chipClassName: "border-primary/35 bg-primary/10 text-primary",
   },
   deslocamento: {
     label: "Deslocamento",
-    chipClassName:
-      "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    chipClassName: "border-accent-foreground/25 bg-accent text-accent-foreground",
   },
   em_execucao: {
     label: "Em execucao",
-    chipClassName:
-      "border-cyan-500/35 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+    chipClassName: "border-primary/45 bg-primary/15 text-primary",
   },
   concluido: {
     label: "Concluido",
-    chipClassName:
-      "border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    chipClassName: "border-border/80 bg-secondary text-secondary-foreground",
   },
 }
 
@@ -60,18 +56,15 @@ export const agendaPriorityMeta: Record<
 > = {
   alta: {
     label: "Alta",
-    chipClassName:
-      "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300",
+    chipClassName: "border-destructive/40 bg-destructive/10 text-destructive",
   },
   media: {
     label: "Media",
-    chipClassName:
-      "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    chipClassName: "border-accent-foreground/25 bg-accent text-accent-foreground",
   },
   baixa: {
     label: "Baixa",
-    chipClassName:
-      "border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    chipClassName: "border-border/70 bg-muted/40 text-muted-foreground",
   },
 }
 
@@ -84,23 +77,19 @@ export const agendaQueueMeta: Record<
 > = {
   instalacao: {
     label: "Instalacao",
-    chipClassName:
-      "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+    chipClassName: "border-primary/35 bg-primary/10 text-primary",
   },
   manutencao: {
     label: "Manutencao",
-    chipClassName:
-      "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300",
+    chipClassName: "border-accent-foreground/25 bg-accent text-accent-foreground",
   },
   suporte: {
     label: "Suporte",
-    chipClassName:
-      "border-slate-500/30 bg-slate-500/10 text-slate-700 dark:text-slate-300",
+    chipClassName: "border-border/80 bg-secondary text-secondary-foreground",
   },
   garantia: {
     label: "Garantia",
-    chipClassName:
-      "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    chipClassName: "border-border/70 bg-muted/40 text-muted-foreground",
   },
 }
 
@@ -113,18 +102,15 @@ export const availabilityMeta: Record<
 > = {
   disponivel: {
     label: "Disponivel",
-    chipClassName:
-      "border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    chipClassName: "border-border/80 bg-secondary text-secondary-foreground",
   },
   em_rota: {
     label: "Em rota",
-    chipClassName:
-      "border-cyan-500/35 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+    chipClassName: "border-primary/35 bg-primary/10 text-primary",
   },
   folga: {
     label: "Folga",
-    chipClassName:
-      "border-slate-500/35 bg-slate-500/10 text-slate-700 dark:text-slate-300",
+    chipClassName: "border-border/70 bg-muted/40 text-muted-foreground",
   },
 }
 
@@ -159,7 +145,8 @@ const technicians: AgendaTechnician[] = [
     specialty: "Infra e rede",
     base: "Zona Norte",
     availability: "em_rota",
-    accent: "#06b6d4",
+    accent: "var(--primary)",
+    accentForeground: "var(--primary-foreground)",
   },
   {
     id: "tec-02",
@@ -168,7 +155,8 @@ const technicians: AgendaTechnician[] = [
     specialty: "Automacao industrial",
     base: "Zona Leste",
     availability: "disponivel",
-    accent: "#f97316",
+    accent: "color-mix(in oklab, var(--chart-2) 78%, black 22%)",
+    accentForeground: "var(--primary-foreground)",
   },
   {
     id: "tec-03",
@@ -177,7 +165,8 @@ const technicians: AgendaTechnician[] = [
     specialty: "CFTV e seguranca",
     base: "Centro",
     availability: "em_rota",
-    accent: "#14b8a6",
+    accent: "var(--chart-5)",
+    accentForeground: "var(--primary-foreground)",
   },
   {
     id: "tec-04",
@@ -186,7 +175,8 @@ const technicians: AgendaTechnician[] = [
     specialty: "Energia e nobreak",
     base: "Zona Sul",
     availability: "disponivel",
-    accent: "#eab308",
+    accent: "color-mix(in oklab, var(--chart-4) 45%, black 55%)",
+    accentForeground: "var(--primary-foreground)",
   },
   {
     id: "tec-05",
@@ -195,7 +185,8 @@ const technicians: AgendaTechnician[] = [
     specialty: "Servidores e backup",
     base: "ABC Paulista",
     availability: "folga",
-    accent: "#22c55e",
+    accent: "color-mix(in oklab, var(--chart-3) 58%, black 42%)",
+    accentForeground: "var(--primary-foreground)",
   },
 ]
 
