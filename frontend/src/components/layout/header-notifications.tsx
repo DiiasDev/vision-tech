@@ -1,5 +1,6 @@
 "use client"
 
+import { useSyncExternalStore } from "react"
 import { Bell, Cake, Boxes, TriangleAlert } from "lucide-react"
 
 import {
@@ -18,6 +19,10 @@ type HeaderNotificationsProps = {
   notifications: HeaderNotification[]
 }
 
+function subscribeHydration() {
+  return () => undefined
+}
+
 function iconByType(type: HeaderNotification["type"]) {
   if (type === "birthday") return <Cake className="h-4 w-4 text-primary" />
   if (type === "inventory") return <Boxes className="h-4 w-4 text-amber-500" />
@@ -25,7 +30,26 @@ function iconByType(type: HeaderNotification["type"]) {
 }
 
 export function HeaderNotifications({ notifications }: HeaderNotificationsProps) {
+  const mounted = useSyncExternalStore(
+    subscribeHydration,
+    () => true,
+    () => false
+  )
   const unreadCount = notifications.filter((notification) => notification.unread).length
+
+  if (!mounted) {
+    return (
+      <Button type="button" variant="outline" size="icon" className="relative h-10 w-10 rounded-xl border-border/70 bg-background/60 backdrop-blur-sm">
+        <Bell className="h-4 w-4" />
+        {unreadCount > 0 ? (
+          <span className="bg-destructive text-destructive-foreground absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-semibold">
+            {unreadCount}
+          </span>
+        ) : null}
+        <span className="sr-only">Abrir notificacoes</span>
+      </Button>
+    )
+  }
 
   return (
     <DropdownMenu>

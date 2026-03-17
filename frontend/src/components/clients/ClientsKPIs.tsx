@@ -1,78 +1,73 @@
-import { ArrowUpRight, CircleAlert, HandCoins, UsersRound } from "lucide-react"
+import { AlertTriangle, CircleCheckBig, Clock3, UsersRound } from "lucide-react"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import type { ClientsListItem } from "@/services/clients.service"
+import { type ClientsListItem } from "@/services/clients.service"
 
 type ClientsKPIsProps = {
   clients: ClientsListItem[]
 }
 
 export default function ClientsKPIs({ clients }: ClientsKPIsProps) {
-  const total = clients.length
-  const ativos = clients.filter((client) => client.status === "ACTIVE").length
-  const inadimplentes = clients.filter((client) => client.status === "DELINQUENT").length
-  const semContato = clients.filter((client) => !client.lastContact).length
+  const totalClients = clients.length
+  const activeClients = clients.filter((client) => client.status === "ACTIVE").length
+  const delinquentClients = clients.filter((client) => client.status === "DELINQUENT").length
+  const withoutContact = clients.filter((client) => !client.lastContact).length
 
   const cards = [
     {
-      label: "Total de Clientes",
-      value: `${total}`,
-      helper: "Base ativa + onboarding",
-      tone: "text-sky-300",
-      iconTone: "text-sky-200",
+      id: "total",
+      label: "Total de clientes",
+      value: String(totalClients),
+      helper: "Base cadastrada",
       icon: UsersRound,
+      colorClass: "text-primary",
+      bgClass: "from-primary/15 to-primary/5",
     },
     {
-      label: "Clientes Ativos",
-      value: `${ativos}`,
-      helper: total > 0 ? `${Math.round((ativos / total) * 100)}% da carteira` : "Sem clientes cadastrados",
-      tone: "text-emerald-300",
-      iconTone: "text-emerald-200",
-      icon: ArrowUpRight,
+      id: "active",
+      label: "Clientes ativos",
+      value: String(activeClients),
+      helper: `${totalClients > 0 ? Math.round((activeClients / totalClients) * 100) : 0}% da carteira`,
+      icon: CircleCheckBig,
+      colorClass: "text-emerald-600",
+      bgClass: "from-emerald-500/15 to-emerald-500/5",
     },
     {
+      id: "delinquent",
       label: "Inadimplentes",
-      value: `${inadimplentes}`,
-      helper: "Monitorar risco financeiro",
-      tone: "text-rose-300",
-      iconTone: "text-rose-200",
-      icon: CircleAlert,
+      value: String(delinquentClients),
+      helper: "Contas com atenção financeira",
+      icon: AlertTriangle,
+      colorClass: "text-rose-600",
+      bgClass: "from-rose-500/15 to-rose-500/5",
     },
     {
-      label: "Sem Contato",
-      value: `${semContato}`,
-      helper: "Sem ultimo contato registrado",
-      tone: "text-amber-300",
-      iconTone: "text-amber-200",
-      icon: HandCoins,
+      id: "without-contact",
+      label: "Sem último contato",
+      value: String(withoutContact),
+      helper: "Clientes sem follow-up registrado",
+      icon: Clock3,
+      colorClass: "text-amber-600",
+      bgClass: "from-amber-500/15 to-amber-500/5",
     },
   ]
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {cards.map((card) => {
-        const Icon = card.icon
+    <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {cards.map((card) => (
+        <article key={card.id} className="rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-muted-foreground">{card.label}</p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight">{card.value}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{card.helper}</p>
+            </div>
 
-        return (
-          <Card
-            key={card.label}
-            className="gap-4 border-border/70 bg-gradient-to-b from-background/90 to-background/40 shadow-[0_0_0_1px_hsl(var(--background))_inset]"
-          >
-            <CardHeader className="flex-row items-start justify-between space-y-0 pb-0">
-              <div>
-                <CardDescription className="text-xs uppercase tracking-[0.18em] text-muted-foreground/80">
-                  {card.label}
-                </CardDescription>
-                <CardTitle className={`mt-3 text-3xl font-semibold tracking-tight ${card.tone}`}>{card.value}</CardTitle>
-              </div>
-              <div className="rounded-lg border border-border/70 bg-muted/45 p-2.5">
-                <Icon className={`h-5 w-5 stroke-[2.2] ${card.iconTone}`} />
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 text-sm text-muted-foreground">{card.helper}</CardContent>
-          </Card>
-        )
-      })}
-    </div>
+            <div className={`rounded-xl bg-gradient-to-br p-2.5 ${card.bgClass}`}>
+              <card.icon className={`h-4 w-4 ${card.colorClass}`} />
+            </div>
+          </div>
+        </article>
+      ))}
+    </section>
   )
 }

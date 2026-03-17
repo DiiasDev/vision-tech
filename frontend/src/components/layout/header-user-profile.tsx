@@ -1,5 +1,6 @@
 "use client"
 
+import { useSyncExternalStore } from "react"
 import { LogOut } from "lucide-react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -19,6 +20,10 @@ type HeaderUserProfileProps = {
   onLogout: () => void
 }
 
+function subscribeHydration() {
+  return () => undefined
+}
+
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return "US"
@@ -27,6 +32,33 @@ function getInitials(name: string) {
 }
 
 export function HeaderUserProfile({ user, onLogout }: HeaderUserProfileProps) {
+  const mounted = useSyncExternalStore(
+    subscribeHydration,
+    () => true,
+    () => false
+  )
+
+  if (!mounted) {
+    return (
+      <button
+        type="button"
+        className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/60 px-2.5 py-1.5 backdrop-blur-sm transition-colors dark:border-slate-700 dark:bg-slate-900/80"
+        aria-label="Abrir menu do usuário"
+      >
+        <Avatar className="h-8 w-8 border border-border/70 dark:border-slate-600">
+          <AvatarFallback className="dark:bg-slate-950 dark:text-slate-200">
+            {getInitials(user.fullName)}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="hidden min-w-0 text-left md:block">
+          <p className="truncate text-sm font-semibold leading-tight dark:text-slate-100">{user.fullName}</p>
+          <p className="text-muted-foreground truncate text-xs leading-tight dark:text-slate-400">{user.role}</p>
+        </div>
+      </button>
+    )
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
