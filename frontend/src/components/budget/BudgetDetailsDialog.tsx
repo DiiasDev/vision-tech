@@ -119,6 +119,10 @@ export function BudgetDetailsDialog({ budget, open, onOpenChange }: BudgetDetail
                       <p className="text-muted-foreground">
                         <strong>Entrega:</strong> {budget.deliveryTerm}
                       </p>
+                      <p className="text-muted-foreground">
+                        <strong>Aprovacao:</strong>{" "}
+                        {budget.approvalDate ? formatBudgetDateLong(budget.approvalDate) : "Nao informada"}
+                      </p>
                     </div>
 
                     <Separator />

@@ -40,11 +40,6 @@ type ParsedBudgetItem = {
   margin: number
 }
 
-type PaymentTermsOption = {
-  label: string
-  value: string
-}
-
 type BudgetFinancialSummary = {
   parsedItems: ParsedBudgetItem[]
   productsGrossTotal: number
@@ -57,9 +52,9 @@ type BudgetFinancialSummary = {
   budgetDiscount: number
   budgetTotalCost: number
   budgetTotal: number
+  budgetProfitPercent: number
 }
 
-const MOCK_INSTALLMENT_INTEREST_RATE = 0.05
 const MANUAL_AMOUNT_FIELDS = [
   "productsTotalAmount",
   "productsCostAmount",
@@ -119,38 +114,9 @@ function formatCurrencyValue(value: string | number | null | undefined, fallback
   return fallback
 }
 
-function buildPaymentTermsOptions(totalBudget: number): PaymentTermsOption[] {
-  const normalizedTotal = Number.isFinite(totalBudget) ? Math.max(0, totalBudget) : 0
-
-  const installmentOptions = Array.from({ length: 9 }, (_, index) => {
-    const installments = index + 2
-    const hasInterest = installments >= 3
-    const interestRate = hasInterest ? MOCK_INSTALLMENT_INTEREST_RATE * (installments - 2) : 0
-    const totalWithInterest = normalizedTotal * (1 + interestRate)
-    const installmentValue = installments > 0 ? totalWithInterest / installments : totalWithInterest
-
-    return {
-      value: `parcelado_${installments}`,
-      label: `Parcelado em ${installments}x de ${formatCurrencyBR(installmentValue)} ${
-        hasInterest ? `(com juros de ${Math.round(interestRate * 100)}%)` : "(sem juros)"
-      }`,
-    }
-  })
-
-  return [
-    { label: "Pix", value: "pix" },
-    { label: "Debito", value: "debito" },
-    { label: "Credito a vista", value: "credito_avista" },
-    ...installmentOptions,
-    { label: "Dinheiro", value: "dinheiro" },
-  ]
-}
-
-function resolvePaymentTermsLabel(value: string | undefined, totalBudget: number) {
-  const normalized = (value ?? "").trim()
-  if (!normalized) return ""
-  const match = buildPaymentTermsOptions(totalBudget).find((option) => option.value === normalized)
-  return match?.label ?? normalized
+function formatPercentValue(value: number) {
+  if (!Number.isFinite(value)) return "0,00%"
+  return `${value.toFixed(2).replace(".", ",")}%`
 }
 
 function calculateBudgetFinancialSummary(
@@ -185,6 +151,7 @@ function calculateBudgetFinancialSummary(
     : 0
   const budgetTotalCost = Math.max(0, productsCost + serviceCost)
   const budgetTotal = Math.max(0, productsTotal + serviceTotal - budgetDiscount)
+  const budgetProfitPercent = budgetTotal > 0 ? ((budgetTotal - budgetTotalCost) / budgetTotal) * 100 : 0
 
   return {
     parsedItems,
@@ -198,6 +165,7 @@ function calculateBudgetFinancialSummary(
     budgetDiscount,
     budgetTotalCost,
     budgetTotal,
+    budgetProfitPercent,
   }
 }
 
@@ -440,10 +408,12 @@ function applyProductToItem(values: Record<string, string>, index: number, produ
 }
 
 function buildReviewSummary(values: Record<string, string>, parsedItems: ParsedBudgetItem[]) {
-  const paymentTermsLabel = resolvePaymentTermsLabel(
-    values.paymentTerms,
-    Math.max(0, parseCurrencyNumber(values.budgetTotalAmount, 0))
-  )
+  const clientName = values.clientName?.trim() || "Nao informado"
+  const serviceName = values.serviceName?.trim() || "Nao informado"
+  const owner = values.owner?.trim() || "Nao informado"
+  const validUntil = values.validUntil?.trim() || "Nao informado"
+  const approvalDate = values.approvalDate?.trim() || "Nao informada"
+  const deliveryTerm = values.deliveryTerm?.trim() || "Nao informado"
   const productsTotalLabel = formatCurrencyBR(Math.max(0, parseCurrencyNumber(values.productsTotalAmount, 0)))
   const productsCostLabel = formatCurrencyBR(Math.max(0, parseCurrencyNumber(values.productsCostAmount, 0)))
   const serviceTotalLabel = formatCurrencyBR(Math.max(0, parseCurrencyNumber(values.serviceTotalAmount, 0)))
@@ -451,31 +421,40 @@ function buildReviewSummary(values: Record<string, string>, parsedItems: ParsedB
   const totalCostLabel = formatCurrencyBR(Math.max(0, parseCurrencyNumber(values.budgetTotalCostAmount, 0)))
   const discountLabel = formatCurrencyBR(Math.max(0, parseCurrencyNumber(values.budgetDiscount, 0)))
   const totalBudgetLabel = formatCurrencyBR(Math.max(0, parseCurrencyNumber(values.budgetTotalAmount, 0)))
+  const profitPercentLabel = values.budgetProfitPercent?.trim() || "0,00%"
 
   const lines = [
-    `Cliente: ${values.clientName?.trim() || "Nao informado"}`,
-    `Servico: ${values.serviceName?.trim() || "Nao informado"}`,
-    `Total produtos: ${productsTotalLabel}`,
-    `Custo produtos: ${productsCostLabel}`,
-    `Total servicos: ${serviceTotalLabel}`,
-    `Custo servicos: ${serviceCostLabel}`,
-    `Custo total: ${totalCostLabel}`,
-    `Desconto aplicado: ${discountLabel}`,
-    `Total orcamento: ${totalBudgetLabel}`,
-    `Pagamento: ${paymentTermsLabel || "Nao informado"}`,
-    `Itens selecionados: ${parsedItems.length}`,
+    "RESUMO DO ORCAMENTO",
+    "===================",
     "",
-    "Itens:",
+    "CLIENTE E PRAZO",
+    `- Cliente: ${clientName}`,
+    `- Servico: ${serviceName}`,
+    `- Responsavel: ${owner}`,
+    `- Validade: ${validUntil}`,
+    `- Data de aprovacao: ${approvalDate}`,
+    `- Prazo de entrega: ${deliveryTerm}`,
+    "",
+    "FINANCEIRO",
+    `- Total produtos: ${productsTotalLabel}`,
+    `- Custo produtos: ${productsCostLabel}`,
+    `- Total servicos: ${serviceTotalLabel}`,
+    `- Custo servicos: ${serviceCostLabel}`,
+    `- Custo total: ${totalCostLabel}`,
+    `- Desconto aplicado: ${discountLabel}`,
+    `- Total orcamento: ${totalBudgetLabel}`,
+    `- % de lucro: ${profitPercentLabel}`,
+    "",
+    `ITENS SELECIONADOS (${parsedItems.length})`,
   ]
 
   if (parsedItems.length === 0) {
-    lines.push("Nenhum item selecionado.")
+    lines.push("- Nenhum item selecionado.")
   } else {
     parsedItems.forEach((item, index) => {
       const unitLabel = item.product.unitOfMeasure?.trim() || "un"
-      lines.push(
-        `${index + 1}. ${item.product.code} - ${item.product.name} | Qtd ${item.quantity} ${unitLabel} | Total ${formatCurrencyBR(item.netTotal)}`
-      )
+      lines.push(`${index + 1}. ${item.product.code} - ${item.product.name}`)
+      lines.push(`   Qtd: ${item.quantity} ${unitLabel} | Total: ${formatCurrencyBR(item.netTotal)}`)
     })
   }
 
@@ -498,6 +477,7 @@ function applyItemsSummary(
     serviceCost,
     budgetTotalCost,
     budgetTotal,
+    budgetProfitPercent,
   } = summary
 
   let nextValues = { ...values }
@@ -531,7 +511,7 @@ function applyItemsSummary(
     ? values.budgetDiscount ?? ""
     : "0.00"
 
-  nextValues = {
+  const summaryValues = {
     ...nextValues,
     itemsCount: String(parsedItems.length),
     itemsSubtotal: formatCurrencyBR(productsGrossTotal),
@@ -545,21 +525,30 @@ function applyItemsSummary(
     budgetDiscount: resolvedBudgetDiscount,
     budgetTotalCostAmount: formatCurrencyBR(budgetTotalCost),
     budgetTotalAmount: formatCurrencyBR(budgetTotal),
-    reviewSummary: buildReviewSummary(nextValues, parsedItems),
+    budgetProfitPercent: formatPercentValue(budgetProfitPercent),
+  }
+
+  nextValues = {
+    ...summaryValues,
+    reviewSummary: buildReviewSummary(summaryValues, parsedItems),
   }
 
   return nextValues
 }
 
-function buildBudgetFromValues(values: Record<string, string>, code: string, parsedItems: ParsedBudgetItem[]) {
+function buildBudgetFromValues(
+  values: Record<string, string>,
+  code: string,
+  parsedItems: ParsedBudgetItem[],
+  loggedOwner: string
+) {
   const budgetId = globalThis.crypto?.randomUUID?.() ?? `bud-${Date.now()}`
   const now = new Date()
   const today = toDateOnly(now)
 
-  const owner = values.owner?.trim() || "Equipe Comercial"
+  const owner = loggedOwner.trim() || "Equipe Comercial"
   const validUntil = values.validUntil?.trim() || toDateOnly(addDays(now, 15))
-  const budgetTotal = Math.max(0, parseCurrencyNumber(values.budgetTotalAmount, 0))
-  const paymentTermsLabel = resolvePaymentTermsLabel(values.paymentTerms, budgetTotal)
+  const approvalDate = values.approvalDate?.trim() || undefined
 
   const assumptions = parseMultiline(values.assumptions)
   const exclusions = parseMultiline(values.exclusions)
@@ -592,8 +581,9 @@ function buildBudgetFromValues(values: Record<string, string>, code: string, par
     createdAt: today,
     updatedAt: today,
     validUntil,
+    approvalDate,
     expectedCloseDate: validUntil,
-    paymentTerms: paymentTermsLabel || "A definir",
+    paymentTerms: "A definir",
     deliveryTerm: values.deliveryTerm?.trim() || "A definir",
     slaSummary: values.slaSummary?.trim() || "SLA a definir em proposta comercial.",
     scopeSummary: values.scopeSummary?.trim() || "Escopo a detalhar com o cliente.",
@@ -683,7 +673,7 @@ export function FormBudget({ open, onClose, existingCodes, onCreated, onFeedback
       {
         key: "review",
         title: "Review",
-        description: "Revise o resumo final e os campos de planejamento.",
+        description: "Revise o resumo final antes de gerar o orcamento.",
         sections: ["Review"],
       },
       {
@@ -733,7 +723,6 @@ export function FormBudget({ open, onClose, existingCodes, onCreated, onFeedback
   const fields = useMemo<GenericField[]>(() => {
     const now = new Date()
     const defaultValidUntil = toDateOnly(addDays(now, 15))
-    const defaultNextStepDate = toDateOnly(addDays(now, 2))
 
     const clientOptions = clients.map((client) => ({
       label: `${client.code} - ${client.name}`,
@@ -749,9 +738,6 @@ export function FormBudget({ open, onClose, existingCodes, onCreated, onFeedback
       label: `${product.code} - ${product.name}`,
       value: product.id,
     }))
-
-    const budgetTotalForInstallments = Math.max(0, parseCurrencyNumber(formValues.budgetTotalAmount, 0))
-    const paymentTermsOptions = buildPaymentTermsOptions(budgetTotalForInstallments)
 
     const itemFields = itemBlocks.flatMap<GenericField>((_, index) => {
       const itemNumber = index + 1
@@ -1173,6 +1159,9 @@ export function FormBudget({ open, onClose, existingCodes, onCreated, onFeedback
         section: "Calculo de orcamento",
         required: true,
         defaultValue: ownerDefault,
+        readOnly: true,
+        disabled: true,
+        autoFilled: true,
       },
       {
         name: "validUntil",
@@ -1181,6 +1170,12 @@ export function FormBudget({ open, onClose, existingCodes, onCreated, onFeedback
         section: "Calculo de orcamento",
         required: true,
         defaultValue: defaultValidUntil,
+      },
+      {
+        name: "approvalDate",
+        label: "Data de aprovacao",
+        type: "date",
+        section: "Calculo de orcamento",
       },
       {
         name: "productsTotalAmount",
@@ -1238,21 +1233,21 @@ export function FormBudget({ open, onClose, existingCodes, onCreated, onFeedback
         colSpan: 2,
       },
       {
-        name: "paymentTerms",
-        label: "Condicoes de pagamento",
-        type: "select",
+        name: "budgetProfitPercent",
+        label: "% de lucro",
+        type: "text",
         section: "Calculo de orcamento",
-        required: true,
-        placeholder: "Selecione a condicao de pagamento",
-        options: paymentTermsOptions,
-        colSpan: 2,
+        defaultValue: "0,00%",
+        readOnly: true,
+        autoFilled: true,
       },
       {
         name: "deliveryTerm",
         label: "Prazo de entrega",
-        type: "date-picker",
+        type: "text",
         section: "Calculo de orcamento",
         required: true,
+        placeholder: "Ex: 3 dias apos a aprovacao",
       },
       {
         name: "slaSummary",
@@ -1277,55 +1272,9 @@ export function FormBudget({ open, onClose, existingCodes, onCreated, onFeedback
         label: "Resumo geral",
         type: "textarea",
         section: "Review",
-        sectionDescription: "Conferencia final antes de gerar o orcamento.",
+        sectionDescription: "Conferencia final consolidada do orcamento.",
         readOnly: true,
         autoFilled: true,
-        colSpan: 3,
-      },
-      {
-        name: "nextStepAction",
-        label: "Proxima acao",
-        type: "text",
-        section: "Review",
-        placeholder: "Ex: Reuniao com diretor financeiro",
-      },
-      {
-        name: "nextStepDueDate",
-        label: "Data da proxima acao",
-        type: "date",
-        section: "Review",
-        defaultValue: defaultNextStepDate,
-      },
-      {
-        name: "nextStepObjective",
-        label: "Objetivo da proxima acao",
-        type: "text",
-        section: "Review",
-        placeholder: "Ex: Validar premissas e aprovar proposta",
-        colSpan: 2,
-      },
-      {
-        name: "assumptions",
-        label: "Premissas (uma por linha)",
-        type: "textarea",
-        section: "Review",
-        placeholder: "Ex: Cliente disponibiliza equipe de infraestrutura.",
-        colSpan: 3,
-      },
-      {
-        name: "exclusions",
-        label: "Exclusoes (uma por linha)",
-        type: "textarea",
-        section: "Review",
-        placeholder: "Ex: Nao inclui licencas de terceiros.",
-        colSpan: 3,
-      },
-      {
-        name: "attachments",
-        label: "Anexos (separe por quebra de linha, virgula ou ponto e virgula)",
-        type: "textarea",
-        section: "Review",
-        placeholder: "Ex: Proposta_comercial.pdf",
         colSpan: 3,
       },
       {
@@ -1340,7 +1289,7 @@ export function FormBudget({ open, onClose, existingCodes, onCreated, onFeedback
         colSpan: 3,
       },
     ]
-  }, [clients, formValues.budgetTotalAmount, itemBlocks, nextCode, ownerDefault, products, services])
+  }, [clients, itemBlocks, nextCode, ownerDefault, products, services])
 
   useEffect(() => {
     if (!open) {
@@ -1426,6 +1375,7 @@ export function FormBudget({ open, onClose, existingCodes, onCreated, onFeedback
   function handleValuesChange(nextValues: Record<string, string>) {
     let normalizedValues = { ...nextValues }
     let nextManualAmountOverrides = manualAmountOverrides
+    const loggedOwner = ownerDefault.trim() || "Equipe Comercial"
 
     if ((nextValues.clientId ?? "") !== (formValues.clientId ?? "")) {
       const selectedClient = clients.find((client) => client.id === nextValues.clientId) ?? null
@@ -1464,6 +1414,10 @@ export function FormBudget({ open, onClose, existingCodes, onCreated, onFeedback
 
     if ((normalizedValues.clientPhone ?? "") !== (formValues.clientPhone ?? "")) {
       normalizedValues.clientPhone = formatPhoneBR(normalizedValues.clientPhone)
+    }
+
+    if ((normalizedValues.owner ?? "") !== loggedOwner) {
+      normalizedValues.owner = loggedOwner
     }
 
     for (const fieldName of MANUAL_AMOUNT_FIELDS) {
@@ -1507,7 +1461,7 @@ export function FormBudget({ open, onClose, existingCodes, onCreated, onFeedback
         return
       }
 
-      const created = buildBudgetFromValues(values, nextCode, parsedItems)
+      const created = buildBudgetFromValues(values, nextCode, parsedItems, ownerDefault)
       onCreated?.(created)
 
       const successAlert = ComponentAlert.Success(`Orcamento ${created.code} cadastrado com sucesso.`)

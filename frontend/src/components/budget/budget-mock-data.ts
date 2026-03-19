@@ -66,6 +66,7 @@ export type Budget = {
   createdAt: string
   updatedAt: string
   validUntil: string
+  approvalDate?: string
   expectedCloseDate: string
   paymentTerms: string
   deliveryTerm: string
