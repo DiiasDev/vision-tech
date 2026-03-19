@@ -9,22 +9,21 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Vision Tech",
+  title: "Byncode",
   description: "Sistema de Gestão Empresarial",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    title: "VisionTech",
+    title: "Byncode",
     statusBarStyle: "default",
   },
   icons: {
     icon: [
-      { url: "/favicon.ico" },
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/byncodeLogo.png", sizes: "192x192", type: "image/png" },
+      { url: "/byncodeLogo.png", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: [{ url: "/favicon.ico" }],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: [{ url: "/byncodeLogo.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/byncodeLogo.png", sizes: "180x180", type: "image/png" }],
   },
 };
 

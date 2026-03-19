@@ -105,7 +105,7 @@ export function LoginForm() {
           Bem-vindo de volta!
         </h1>
         <p className="mt-5 max-w-[400px] text-lg leading-[1.55] text-[#6c7483] md:text-[21px]">
-          Simplifique seu fluxo de trabalho e potencialize sua gestão com o <span className="font-semibold text-[#131d2e]">Vision Tech</span>.
+          Simplifique seu fluxo de trabalho e potencialize sua gestão com o <span className="font-semibold text-[#131d2e]">Byncode</span>.
         </p>
       </div>
 

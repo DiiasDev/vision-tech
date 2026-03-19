@@ -117,7 +117,7 @@ export const productsMock: Product[] = [
     createdAt: "2026-02-15",
     updatedAt: "2026-02-28",
     createdBy: "Camila Soares",
-    brand: "Vision Tech",
+    brand: "Byncode",
     supplier: "Equipe Interna",
     monthlySales: 52,
     imageUrl: "/product.png"
@@ -139,7 +139,7 @@ export const productsMock: Product[] = [
     createdAt: "2026-02-18",
     updatedAt: "2026-02-25",
     createdBy: "Camila Soares",
-    brand: "Vision Tech",
+    brand: "Byncode",
     supplier: "Equipe Interna",
     monthlySales: 9
   }

@@ -49,7 +49,7 @@ const menu: MenuItem[] = [
     icon: BriefcaseBusiness,
     subItems: [
       { name: "Clientes", href: "/dashboard/comercial/clientes" },
-      { name: "Orcamentos", href: "/dashboard/comercial/orcamentos" },
+      { name: "Orcamentos", href: "/budget" },
       { name: "Contratos", href: "/dashboard/comercial/contratos" },
     ],
   },
@@ -170,8 +170,8 @@ export function Sidebar({ isOpen }: SidebarProps) {
           <div className="flex items-center gap-3">
             <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-sidebar-border/60 bg-background/70 p-0.5 shadow-sm">
               <Image
-                src="/icons/icon-192.png"
-                alt="Icone do Vision Tech"
+                src="/byncodeLogo.png"
+                alt="Icone do Byncode"
                 fill
                 sizes="48px"
                 className="object-cover"
@@ -181,7 +181,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
             <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.22em] text-sidebar-foreground/65">Painel</p>
               <h2 className="mt-1 text-3xl font-bold leading-none tracking-tight text-foreground">
-                Vision <span className="text-accent">Tech</span>
+                Byn<span className="text-accent">code</span>
               </h2>
               <p className="mt-1 text-[11px] text-sidebar-foreground/72">Plataforma de gestao integrada</p>
             </div>
@@ -288,7 +288,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
         <div className="rounded-2xl border border-sidebar-border/70 bg-background/55 p-4">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <span className="relative h-5 w-5 overflow-hidden rounded-md border border-primary/30 bg-background/70">
-              <Image src="/icons/icon-192.png" alt="Logo Vision Tech" fill sizes="20px" className="object-cover" />
+              <Image src="/byncodeLogo.png" alt="Logo Byncode" fill sizes="20px" className="object-cover" />
             </span>
             Workspace Pro
           </div>

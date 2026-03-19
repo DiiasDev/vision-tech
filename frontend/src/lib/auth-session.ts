@@ -7,8 +7,8 @@ type AuthSessionUser = {
   role?: string | null
 }
 
-const AUTH_TOKEN_KEY = "visiontech.access_token"
-const AUTH_USER_KEY = "visiontech.user"
+const AUTH_TOKEN_KEY = "byncode.access_token"
+const AUTH_USER_KEY = "byncode.user"
 
 export function saveAuthSession(accessToken: string, user?: AuthSessionUser | null) {
   if (typeof window === "undefined") return

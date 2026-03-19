@@ -39,8 +39,8 @@ type SupplierFieldKey =
 
 const MAX_VISIBLE_FIELDS = 8
 const MIN_VISIBLE_FIELDS = 2
-const VISIBLE_FIELDS_STORAGE_KEY = "vision-tech:suppliers:table-visible-fields:v1"
-const VISIBLE_FIELDS_STORAGE_EVENT = "vision-tech:suppliers:table-visible-fields:changed"
+const VISIBLE_FIELDS_STORAGE_KEY = "byncode:suppliers:table-visible-fields:v1"
+const VISIBLE_FIELDS_STORAGE_EVENT = "byncode:suppliers:table-visible-fields:changed"
 
 const SUPPLIER_FIELD_OPTIONS: ReadonlyArray<TableFieldOption<SupplierFieldKey>> = [
   { key: "code", label: "Código" },

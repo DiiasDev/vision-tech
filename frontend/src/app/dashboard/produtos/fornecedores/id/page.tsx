@@ -9,6 +9,7 @@ import { AlertComponent, ComponentAlert, type ComponentAlertState } from "@/comp
 import { type Supplier } from "@/components/products/Supplier/supplier-models"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { getSupplierById, updateSupplier, type ApiSupplier, type UpdateSupplierPayload } from "@/services/Supplier.service"
@@ -399,10 +400,11 @@ export default function SupplierDetailsPage() {
             </Field>
 
             <Field label="Ultima entrega" id="supplier-last-delivery">
-              <Input
+              <DatePicker
                 id="supplier-last-delivery"
-                type="date"
                 value={form.lastDelivery}
+                onChange={() => undefined}
+                placeholder="Sem data"
                 readOnly
                 disabled
               />

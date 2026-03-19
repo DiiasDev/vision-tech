@@ -45,8 +45,8 @@ type ProductFieldKey =
 
 const MAX_VISIBLE_FIELDS = 8
 const MIN_VISIBLE_FIELDS = 2
-const VISIBLE_FIELDS_STORAGE_KEY = "vision-tech:products:table-visible-fields:v1"
-const VISIBLE_FIELDS_STORAGE_EVENT = "vision-tech:products:table-visible-fields:changed"
+const VISIBLE_FIELDS_STORAGE_KEY = "byncode:products:table-visible-fields:v1"
+const VISIBLE_FIELDS_STORAGE_EVENT = "byncode:products:table-visible-fields:changed"
 
 const PRODUCT_FIELD_OPTIONS: ReadonlyArray<TableFieldOption<ProductFieldKey>> = [
   { key: "image", label: "Imagem" },

@@ -36,8 +36,8 @@ type ClientFieldKey =
 
 const MAX_VISIBLE_FIELDS = 8
 const MIN_VISIBLE_FIELDS = 2
-const VISIBLE_FIELDS_STORAGE_KEY = "vision-tech:clients:table-visible-fields:v1"
-const VISIBLE_FIELDS_STORAGE_EVENT = "vision-tech:clients:table-visible-fields:changed"
+const VISIBLE_FIELDS_STORAGE_KEY = "byncode:clients:table-visible-fields:v1"
+const VISIBLE_FIELDS_STORAGE_EVENT = "byncode:clients:table-visible-fields:changed"
 const EMPTY_IDS = new Set<string>()
 
 const CLIENT_FIELD_OPTIONS: ReadonlyArray<TableFieldOption<ClientFieldKey>> = [

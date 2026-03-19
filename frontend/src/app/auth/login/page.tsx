@@ -20,7 +20,7 @@ export default function LoginPage() {
           <div className="relative mt-5 flex h-[56%] w-full max-w-[500px] items-center justify-center">
             <Image
               src="/login.png"
-              alt="Ilustração de produtividade Vision Tech"
+              alt="Ilustração de produtividade Byncode"
               width={1470}
               height={980}
               className="h-auto w-full max-w-[500px] object-contain"
@@ -38,7 +38,7 @@ export default function LoginPage() {
               Torne seu trabalho mais fácil e organizado
             </h2>
             <p className="mx-auto mt-4 max-w-[430px] text-[20px] leading-relaxed text-[#4f5766]">
-              Com o <span className="font-semibold text-[#111b2d]">Vision Tech</span>, você tem o controle total da sua empresa em um só lugar.
+              Com o <span className="font-semibold text-[#111b2d]">Byncode</span>, você tem o controle total da sua empresa em um só lugar.
             </p>
           </div>
         </aside>

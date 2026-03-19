@@ -7,6 +7,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { DatePicker } from "@/components/ui/date-picker"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,6 +29,7 @@ export type GenericField = {
     | "tel"
     | "number"
     | "date"
+    | "date-picker"
     | "datetime-local"
     | "datetime"
     | "select"
@@ -48,10 +50,25 @@ export type GenericField = {
   defaultValue?: string
 }
 
+export type GenericFormStep = {
+  key: string
+  title: string
+  description?: string
+  sections?: string[]
+  sectionPrefixes?: string[]
+  submitLabel?: string
+}
+
 type GenericFormProps = {
   title: string
   description?: string
   fields: GenericField[]
+  steps?: GenericFormStep[]
+  renderStepHeaderActions?: (context: {
+    step: GenericFormStep
+    stepIndex: number
+    totalSteps: number
+  }) => React.ReactNode
   submitLabel?: string
   cancelLabel?: string
   loading?: boolean
@@ -112,10 +129,26 @@ function parseMultiSelectValue(value: string | undefined) {
     .filter((item) => item.length > 0)
 }
 
+function stepMatchesSection(step: GenericFormStep, sectionTitle: string) {
+  const normalizedSection = sectionTitle.trim()
+  const hasExactSections = Array.isArray(step.sections) && step.sections.length > 0
+  const hasSectionPrefixes = Array.isArray(step.sectionPrefixes) && step.sectionPrefixes.length > 0
+
+  if (!hasExactSections && !hasSectionPrefixes) return true
+
+  const exactMatch = hasExactSections && step.sections?.includes(normalizedSection)
+  const prefixMatch =
+    hasSectionPrefixes && step.sectionPrefixes?.some((prefix) => normalizedSection.startsWith(prefix.trim()))
+
+  return Boolean(exactMatch || prefixMatch)
+}
+
 export default function FormComponent({
   title,
   description,
   fields,
+  steps,
+  renderStepHeaderActions,
   submitLabel = "Salvar",
   cancelLabel = "Cancelar",
   loading = false,
@@ -130,16 +163,50 @@ export default function FormComponent({
 }: GenericFormProps) {
   const initialValues = useMemo(() => buildInitialValues(fields), [fields])
   const sections = useMemo(() => buildSections(fields), [fields])
-  const showSectionHeader = useMemo(
-    () => sections.some((section) => section.title !== "default") || sections.length > 1,
-    [sections]
-  )
+  const formSteps = useMemo(() => steps ?? [], [steps])
+  const isStepMode = formSteps.length > 0
   const [internalValues, setInternalValues] = useState<Record<string, string>>(initialValues)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [activeDropField, setActiveDropField] = useState<string | null>(null)
+  const [stepIndex, setStepIndex] = useState(0)
   const values = controlledValues ?? internalValues
   const requiredCount = useMemo(() => fields.filter((field) => field.required).length, [fields])
   const autoFieldCount = useMemo(() => fields.filter((field) => field.autoFilled).length, [fields])
+  const effectiveStepIndex = isStepMode ? Math.min(stepIndex, Math.max(formSteps.length - 1, 0)) : 0
+  const currentStep = isStepMode ? formSteps[effectiveStepIndex] : null
+
+  const visibleSections = useMemo(() => {
+    if (!currentStep) return sections
+    return sections.filter((section) => stepMatchesSection(currentStep, section.title))
+  }, [currentStep, sections])
+
+  const showSectionHeader = useMemo(
+    () => visibleSections.some((section) => section.title !== "default") || visibleSections.length > 1,
+    [visibleSections]
+  )
+  const shouldShowSectionHeader = isStepMode ? visibleSections.length > 1 : showSectionHeader
+  const currentStepFields = useMemo(
+    () => visibleSections.flatMap((section) => section.fields),
+    [visibleSections]
+  )
+  const currentStepFieldNames = useMemo(
+    () => new Set(currentStepFields.map((field) => field.name)),
+    [currentStepFields]
+  )
+  const isLastStep = !isStepMode || effectiveStepIndex === formSteps.length - 1
+  const primaryActionLabel = isStepMode
+    ? isLastStep
+      ? currentStep?.submitLabel ?? submitLabel
+      : "Proximo"
+    : submitLabel
+  const secondaryActionLabel = isStepMode && effectiveStepIndex > 0 ? "Voltar" : cancelLabel
+  const stepHeaderActions = currentStep
+    ? renderStepHeaderActions?.({
+        step: currentStep,
+        stepIndex: effectiveStepIndex,
+        totalSteps: formSteps.length,
+      })
+    : null
 
   function handleValueChange(fieldName: string, value: string) {
     const nextValues = { ...values, [fieldName]: value }
@@ -157,10 +224,11 @@ export default function FormComponent({
     })
   }
 
-  function validate() {
+  function validate(fieldNames?: Set<string>) {
     const validationErrors: Record<string, string> = {}
 
     for (const field of fields) {
+      if (fieldNames && !fieldNames.has(field.name)) continue
       if (!field.required) continue
       const value = values[field.name]?.trim()
       if (!value) {
@@ -206,15 +274,30 @@ export default function FormComponent({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    if (isStepMode && !isLastStep) {
+      if (!validate(currentStepFieldNames)) return
+      setStepIndex((prev) => Math.min(prev + 1, formSteps.length - 1))
+      return
+    }
+
     if (!validate()) return
     await onSubmit(values)
+  }
+
+  function handleBackOrCancel() {
+    if (isStepMode && effectiveStepIndex > 0) {
+      setStepIndex((prev) => Math.max(0, prev - 1))
+      return
+    }
+    onCancel?.()
   }
 
   return (
     <Card
       className={cn(
         "overflow-hidden border-border bg-card shadow-2xl",
-        scrollable && "flex max-h-full flex-col",
+        scrollable && "flex min-h-0 max-h-full flex-col",
         className
       )}
     >
@@ -238,34 +321,108 @@ export default function FormComponent({
         </div>
       </CardHeader>
 
-      <CardContent className={cn("space-y-4 p-5 sm:p-6", scrollable && "min-h-0 flex-1")}>
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/35 px-3 py-2 text-xs">
-          <span className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 font-medium">
-            <Asterisk className="h-3 w-3 text-primary" />
-            {requiredCount} campo(s) obrigatorio(s)
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 font-medium">
-            <Sparkles className="h-3 w-3 text-primary" />
-            {autoFieldCount} campo(s) automatico(s)
-          </span>
-          <span className="text-muted-foreground">Campos com * sao obrigatorios.</span>
-        </div>
+      <CardContent
+        className={cn(
+          "space-y-4 p-5 sm:p-6",
+          scrollable && "flex min-h-0 flex-1 flex-col overflow-hidden"
+        )}
+      >
+        {isStepMode ? (
+          <section className="shrink-0 space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Etapa {effectiveStepIndex + 1} de {formSteps.length}
+              </p>
+              <span className="inline-flex items-center rounded-full border border-primary/35 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+                Em andamento
+              </span>
+            </div>
+
+            <ol className="flex items-center">
+              {formSteps.map((step, index) => {
+                const isActive = index === effectiveStepIndex
+                const isDone = index < effectiveStepIndex
+
+                return (
+                  <li key={step.key} className="flex min-w-0 flex-1 items-center">
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors",
+                        isActive
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : isDone
+                            ? "border-primary/60 bg-primary/15 text-primary"
+                            : "border-border bg-background text-muted-foreground"
+                      )}
+                    >
+                      {index + 1}
+                    </div>
+                    {index < formSteps.length - 1 ? (
+                      <div
+                        className={cn(
+                          "mx-2 h-1 flex-1 rounded-full transition-colors",
+                          index < effectiveStepIndex ? "bg-primary" : "bg-border"
+                        )}
+                      />
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ol>
+
+            <div className="flex flex-wrap items-start justify-between gap-3 border-t border-border/80 pt-3">
+              <div className="space-y-1">
+                <h3 className="text-lg font-semibold tracking-tight">{currentStep?.title}</h3>
+                {currentStep?.description ? (
+                  <p className="text-sm text-muted-foreground">{currentStep.description}</p>
+                ) : null}
+              </div>
+
+              {stepHeaderActions ? (
+                <div className="flex flex-wrap items-center justify-end gap-2">{stepHeaderActions}</div>
+              ) : null}
+            </div>
+          </section>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/35 px-3 py-2 text-xs">
+            <span className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 font-medium">
+              <Asterisk className="h-3 w-3 text-primary" />
+              {requiredCount} campo(s) obrigatorio(s)
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 font-medium">
+              <Sparkles className="h-3 w-3 text-primary" />
+              {autoFieldCount} campo(s) automatico(s)
+            </span>
+            <span className="text-muted-foreground">Campos com * sao obrigatorios.</span>
+          </div>
+        )}
 
         <form
           onSubmit={handleSubmit}
-          className={cn("space-y-6", scrollable && "flex h-full flex-col")}
+          className={cn("space-y-6", scrollable && "flex min-h-0 flex-1 flex-col")}
         >
-          <div className={cn("form-scrollbar space-y-5", scrollable && "min-h-0 flex-1 overflow-y-scroll pr-2 pb-24")}>
-            {sections.map((section) => (
-              <section key={section.title} className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
-                {showSectionHeader ? (
+          <div
+            className={cn(
+              "form-scrollbar space-y-5",
+              scrollable && "min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-gutter:stable]"
+            )}
+          >
+            {visibleSections.map((section) => (
+              <section
+                key={section.title}
+                className={cn(
+                  "space-y-3 rounded-2xl border p-4 shadow-sm",
+                  isStepMode ? "border-border/70 bg-background/85" : "border-border bg-card"
+                )}
+              >
+                {shouldShowSectionHeader ? (
                   <div>
                     <h3 className="text-lg font-semibold tracking-tight">{section.title === "default" ? "Informacoes" : section.title}</h3>
                     {section.description ? <p className="text-xs text-muted-foreground">{section.description}</p> : null}
                   </div>
                 ) : null}
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-2", !isStepMode && "xl:grid-cols-3")}>
                   {section.fields.map((field) => {
                     const fieldError = errors[field.name]
 
@@ -368,7 +525,20 @@ export default function FormComponent({
                               })}
                             </div>
                           </div>
-                        ) : field.type === "datetime" ? (
+                        ) : field.type === "date" || field.type === "date-picker" ? (
+                          <DatePicker
+                            value={values[field.name] ?? ""}
+                            onChange={(value) => handleValueChange(field.name, value)}
+                            placeholder={field.placeholder ?? "Selecione uma data"}
+                            disabled={loading || field.disabled || field.readOnly}
+                            className={cn(
+                              "h-11 rounded-xl border-border bg-background/95 text-foreground shadow-none disabled:opacity-100",
+                              (field.readOnly || field.autoFilled) &&
+                                "border-border/90 bg-muted/85 text-foreground/75",
+                              fieldError && "border-destructive/70"
+                            )}
+                          />
+                        ) : field.type === "datetime" || field.type === "datetime-local" ? (
                           <DateTimePicker
                             value={values[field.name] ?? ""}
                             onChange={(value) => handleValueChange(field.name, value)}
@@ -490,20 +660,39 @@ export default function FormComponent({
                 </div>
               </section>
             ))}
+
+            {visibleSections.length === 0 ? (
+              <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <p className="text-sm text-muted-foreground">
+                  {currentStep?.description || "Nao ha campos para esta etapa. Avance para continuar."}
+                </p>
+              </section>
+            ) : null}
           </div>
 
           {footer ? (
             footer
           ) : (
-            <div className="sticky bottom-0 z-20 -mx-5 -mb-5 flex flex-wrap justify-end gap-2 border-t border-border bg-card/98 px-5 py-3 sm:-mx-6 sm:-mb-6 sm:px-6">
+            <div
+              className={cn(
+                "-mx-5 -mb-5 z-20 flex flex-wrap gap-2 border-t border-border bg-card/98 px-5 py-3 sm:-mx-6 sm:-mb-6 sm:px-6",
+                isStepMode ? "justify-end" : "justify-between"
+              )}
+            >
               {onCancel ? (
-                <Button type="button" variant="outline" className="rounded-xl" onClick={onCancel} disabled={loading}>
-                  {cancelLabel}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn("rounded-xl", isStepMode && "order-1 w-full sm:order-none sm:w-auto")}
+                  onClick={handleBackOrCancel}
+                  disabled={loading}
+                >
+                  {secondaryActionLabel}
                 </Button>
               ) : null}
-              <Button type="submit" className="rounded-xl" disabled={loading}>
+              <Button type="submit" className={cn("rounded-xl", isStepMode && "w-full sm:w-auto sm:min-w-48")} disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {submitLabel}
+                {primaryActionLabel}
               </Button>
             </div>
           )}

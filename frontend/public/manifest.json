@@ -1,7 +1,7 @@
 {
-  "name": "Vision Tech",
-  "short_name": "VisionTech",
-  "description": "Sistema de Gestão Empresarial - Vision Tech",
+  "name": "Byncode",
+  "short_name": "Byncode",
+  "description": "Sistema de Gestão Empresarial - Byncode",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0e2037",
@@ -9,25 +9,25 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "/byncodeLogo.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-192-maskable.png",
+      "src": "/byncodeLogo.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/byncodeLogo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512-maskable.png",
+      "src": "/byncodeLogo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

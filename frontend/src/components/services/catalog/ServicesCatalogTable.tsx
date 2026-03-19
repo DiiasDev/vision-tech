@@ -36,8 +36,8 @@ type ServiceFieldKey =
 
 const MAX_VISIBLE_FIELDS = 8
 const MIN_VISIBLE_FIELDS = 2
-const VISIBLE_FIELDS_STORAGE_KEY = "vision-tech:services-catalog:table-visible-fields:v1"
-const VISIBLE_FIELDS_STORAGE_EVENT = "vision-tech:services-catalog:table-visible-fields:changed"
+const VISIBLE_FIELDS_STORAGE_KEY = "byncode:services-catalog:table-visible-fields:v1"
+const VISIBLE_FIELDS_STORAGE_EVENT = "byncode:services-catalog:table-visible-fields:changed"
 
 const SERVICE_FIELD_OPTIONS: ReadonlyArray<TableFieldOption<ServiceFieldKey>> = [
   { key: "code", label: "Código" },
