@@ -8,6 +8,7 @@ import { AlertComponent, ComponentAlert, type ComponentAlertState } from "@/comp
 import FormComponent, { type GenericField, type GenericFormStep } from "@/components/layout/formComponent"
 import { Button } from "@/components/ui/button"
 import { getStoredHeaderUser } from "@/lib/auth-session"
+import { createBudget, type CreateBudgetPayload } from "@/services/budgets.service"
 import { getClients, type ClientsListItem } from "@/services/clients.service"
 import { getProducts, type ProductsListItem } from "@/services/products.service"
 import { getServices, type ApiServiceCatalogItem } from "@/services/services.service"
@@ -534,6 +535,71 @@ function applyItemsSummary(
   }
 
   return nextValues
+}
+
+function buildCreateBudgetPayload(
+  values: Record<string, string>,
+  parsedItems: ParsedBudgetItem[],
+  loggedOwner: string
+): CreateBudgetPayload {
+  const now = new Date()
+  const validUntil = values.validUntil?.trim() || toDateOnly(addDays(now, 15))
+  const owner = values.owner?.trim() || loggedOwner.trim() || "Equipe Comercial"
+
+  return {
+    clientId: values.clientId?.trim() || "",
+    serviceId: values.serviceId?.trim() || null,
+    title: values.title?.trim() || `Orcamento ${values.code?.trim() || ""}`.trim(),
+    status: toBudgetStatus(values.status),
+    priority: toBudgetPriority(values.priority),
+    owner,
+    validUntil,
+    approvalDate: values.approvalDate?.trim() || null,
+    expectedCloseDate: validUntil,
+    paymentTerms: "A definir",
+    deliveryTerm: values.deliveryTerm?.trim() || null,
+    slaSummary: values.slaSummary?.trim() || null,
+    scopeSummary: values.scopeSummary?.trim() || null,
+    assumptions: parseMultiline(values.assumptions),
+    exclusions: parseMultiline(values.exclusions),
+    attachments: parseAttachments(values.attachments),
+    clientName: values.clientName?.trim() || null,
+    clientSegment: values.clientSegment?.trim() || null,
+    clientDocument: values.clientDocument?.trim() || null,
+    clientCity: values.clientCity?.trim() || null,
+    clientState: values.clientState?.trim() || null,
+    clientContactName: values.clientContactName?.trim() || null,
+    clientContactRole: values.clientContactRole?.trim() || null,
+    clientEmail: values.clientEmail?.trim() || null,
+    clientPhone: values.clientPhone?.trim() || null,
+    serviceCode: values.serviceCode?.trim() || null,
+    serviceName: values.serviceName?.trim() || null,
+    serviceCategory: values.serviceCategory?.trim() || null,
+    serviceBillingModel: values.serviceBillingModel?.trim() || null,
+    serviceDescription: values.serviceDescription?.trim() || null,
+    serviceEstimatedDuration: values.serviceEstimatedDuration?.trim() || null,
+    serviceResponsible: values.serviceResponsible?.trim() || null,
+    serviceStatus: values.serviceStatus?.trim() || null,
+    productsTotalAmount: Math.max(0, parseCurrencyNumber(values.productsTotalAmount, 0)),
+    productsCostAmount: Math.max(0, parseCurrencyNumber(values.productsCostAmount, 0)),
+    serviceTotalAmount: Math.max(0, parseCurrencyNumber(values.serviceTotalAmount, 0)),
+    serviceCostAmount: Math.max(0, parseCurrencyNumber(values.serviceCostAmount, 0)),
+    budgetDiscount: Math.max(0, parseCurrencyNumber(values.budgetDiscount, 0)),
+    budgetTotalCostAmount: Math.max(0, parseCurrencyNumber(values.budgetTotalCostAmount, 0)),
+    budgetTotalAmount: Math.max(0, parseCurrencyNumber(values.budgetTotalAmount, 0)),
+    budgetProfitPercent: Math.max(0, parseCurrencyNumber(values.budgetProfitPercent, 0)),
+    items: parsedItems.map((item) => ({
+      productId: item.product.id,
+      description: item.product.name?.trim() || "Item nao informado",
+      category: item.product.category,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discount,
+      internalCost: item.internalCost,
+      estimatedHours: item.estimatedHours,
+      deliveryWindow: item.deliveryWindow,
+    })),
+  }
 }
 
 function buildBudgetFromValues(
@@ -1461,10 +1527,28 @@ export function FormBudget({ open, onClose, existingCodes, onCreated, onFeedback
         return
       }
 
-      const created = buildBudgetFromValues(values, nextCode, parsedItems, ownerDefault)
-      onCreated?.(created)
+      const payload = buildCreateBudgetPayload(values, parsedItems, ownerDefault)
+      if (!payload.clientId) {
+        const warningAlert = ComponentAlert.Warning("Selecione um cliente antes de gerar o orcamento.")
+        setFeedback(warningAlert)
+        onFeedback?.(warningAlert)
+        return
+      }
 
-      const successAlert = ComponentAlert.Success(`Orcamento ${created.code} cadastrado com sucesso.`)
+      const response = await createBudget(payload)
+      const generatedCode = response.data?.code?.trim() || nextCode
+      const localBudget = buildBudgetFromValues(values, generatedCode, parsedItems, ownerDefault)
+      const budgetForList: Budget = {
+        ...localBudget,
+        id: response.data?.id ?? localBudget.id,
+        code: generatedCode,
+      }
+
+      onCreated?.(budgetForList)
+
+      const successMessage =
+        response.message?.trim() || `Orcamento ${budgetForList.code} cadastrado com sucesso.`
+      const successAlert = ComponentAlert.Success(successMessage)
       onFeedback?.(successAlert)
       handleClose(true)
     } catch (error) {

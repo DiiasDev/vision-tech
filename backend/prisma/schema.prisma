@@ -60,20 +60,6 @@ enum BudgetPriority {
   HIGH
 }
 
-enum BudgetRiskLevel {
-  LOW
-  MEDIUM
-  HIGH
-}
-
-enum BudgetInteractionChannel {
-  EMAIL
-  CALL
-  MEETING
-  WHATSAPP
-  PROPOSAL
-}
-
 model Organization {
   id        String             @id @default(uuid())
   name      String
@@ -315,6 +301,8 @@ model ServiceCatalog {
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
+  budgets Budget[]
+
   @@unique([code])
   @@index([organizationId])
   @@index([createdById])
@@ -335,6 +323,9 @@ model Budget {
   createdById String?
   createdBy   User?   @relation("BudgetCreatedByUser", fields: [createdById], references: [id], onDelete: SetNull)
 
+  serviceId String?
+  service   ServiceCatalog? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
   code        String
   title       String
   status      BudgetStatus   @default(DRAFT)
@@ -351,6 +342,34 @@ model Budget {
   slaSummary   String?
   scopeSummary String?
 
+  clientName        String?
+  clientSegment     String?
+  clientDocument    String?
+  clientCity        String?
+  clientState       String?
+  clientContactName String?
+  clientContactRole String?
+  clientEmail       String?
+  clientPhone       String?
+
+  serviceCode              String?
+  serviceName              String?
+  serviceCategory          String?
+  serviceBillingModel      String?
+  serviceDescription       String?
+  serviceEstimatedDuration String?
+  serviceResponsible       String?
+  serviceStatus            String?
+
+  productsTotalAmount   Decimal @default(0) @db.Decimal(12, 2)
+  productsCostAmount    Decimal @default(0) @db.Decimal(12, 2)
+  serviceTotalAmount    Decimal @default(0) @db.Decimal(12, 2)
+  serviceCostAmount     Decimal @default(0) @db.Decimal(12, 2)
+  budgetDiscount        Decimal @default(0) @db.Decimal(12, 2)
+  budgetTotalCostAmount Decimal @default(0) @db.Decimal(12, 2)
+  budgetTotalAmount     Decimal @default(0) @db.Decimal(12, 2)
+  budgetProfitPercent   Decimal @default(0) @db.Decimal(5, 2)
+
   assumptions String[]
   exclusions  String[]
   attachments String[]
@@ -359,17 +378,16 @@ model Budget {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  items        BudgetItem[]
-  interactions BudgetInteraction[]
-  risks        BudgetRisk[]
-  nextSteps    BudgetNextStep[]
+  items BudgetItem[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
   @@index([clientId])
   @@index([createdById])
+  @@index([serviceId])
   @@index([status])
   @@index([priority])
+  @@index([probability])
   @@index([validUntil])
 }
 
