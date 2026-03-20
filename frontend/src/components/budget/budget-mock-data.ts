@@ -21,6 +21,8 @@ export type BudgetClient = {
 
 export type BudgetItem = {
   id: string
+  productId?: string | null
+  code?: string | null
   description: string
   category: string
   quantity: number
@@ -62,7 +64,6 @@ export type Budget = {
   status: BudgetStatus
   priority: BudgetPriority
   owner: string
-  probability: number
   createdAt: string
   updatedAt: string
   validUntil: string
@@ -75,6 +76,23 @@ export type Budget = {
   assumptions: string[]
   exclusions: string[]
   client: BudgetClient
+  serviceId?: string | null
+  serviceCode?: string | null
+  serviceName?: string | null
+  serviceCategory?: string | null
+  serviceBillingModel?: string | null
+  serviceDescription?: string | null
+  serviceEstimatedDuration?: string | null
+  serviceResponsible?: string | null
+  serviceStatus?: string | null
+  productsTotalAmount?: number
+  productsCostAmount?: number
+  serviceTotalAmount?: number
+  serviceCostAmount?: number
+  budgetDiscount?: number
+  budgetTotalCostAmount?: number
+  budgetTotalAmount?: number
+  budgetProfitPercent?: number
   items: BudgetItem[]
   interactions: BudgetInteraction[]
   risks: BudgetRisk[]
@@ -231,10 +249,6 @@ export function buildBudgetRecommendations(budget: Budget) {
     recommendations.push("Margem abaixo de 20%. Revisar composicao de custos e descontos antes da aprovacao final.")
   }
 
-  if (budget.probability < 60 && (budget.status === "sent" || budget.status === "negotiation")) {
-    recommendations.push("Probabilidade abaixo da meta. Programar reuniao executiva para reforcar ROI e casos de sucesso.")
-  }
-
   if (remainingDays <= 5 && budget.status !== "approved" && budget.status !== "rejected") {
     recommendations.push("Validade proxima do vencimento. Antecipar contato para renovar proposta e evitar retrabalho.")
   }
@@ -253,12 +267,11 @@ export function buildBudgetRecommendations(budget: Budget) {
 export const budgetMockData: Budget[] = [
   {
     id: "bud-001",
-    code: "ORC-2026-001",
+    code: "ORC-0001",
     title: "Modernizacao da seguranca de rede e endpoint",
     status: "negotiation",
     priority: "high",
     owner: "Marina Lopes",
-    probability: 72,
     createdAt: "2026-03-02",
     updatedAt: "2026-03-15",
     validUntil: "2026-03-25",
@@ -387,12 +400,11 @@ export const budgetMockData: Budget[] = [
   },
   {
     id: "bud-002",
-    code: "ORC-2026-004",
+    code: "ORC-0004",
     title: "Central de atendimento omnichannel com BI",
     status: "sent",
     priority: "medium",
     owner: "Andre Pires",
-    probability: 58,
     createdAt: "2026-02-27",
     updatedAt: "2026-03-12",
     validUntil: "2026-03-24",
@@ -495,12 +507,11 @@ export const budgetMockData: Budget[] = [
   },
   {
     id: "bud-003",
-    code: "ORC-2026-006",
+    code: "ORC-0006",
     title: "Contrato recorrente de suporte NOC",
     status: "approved",
     priority: "medium",
     owner: "Marina Lopes",
-    probability: 100,
     createdAt: "2026-01-18",
     updatedAt: "2026-02-03",
     validUntil: "2026-02-10",
@@ -589,12 +600,11 @@ export const budgetMockData: Budget[] = [
   },
   {
     id: "bud-004",
-    code: "ORC-2026-008",
+    code: "ORC-0008",
     title: "Plataforma de backup em nuvem multirregional",
     status: "rejected",
     priority: "high",
     owner: "Luan Araujo",
-    probability: 18,
     createdAt: "2026-02-01",
     updatedAt: "2026-02-26",
     validUntil: "2026-03-05",
@@ -673,12 +683,11 @@ export const budgetMockData: Budget[] = [
   },
   {
     id: "bud-005",
-    code: "ORC-2026-010",
+    code: "ORC-0010",
     title: "Portal B2B para autoatendimento de pedidos",
     status: "draft",
     priority: "medium",
     owner: "Camila Nunes",
-    probability: 42,
     createdAt: "2026-03-11",
     updatedAt: "2026-03-17",
     validUntil: "2026-04-03",
@@ -771,12 +780,11 @@ export const budgetMockData: Budget[] = [
   },
   {
     id: "bud-006",
-    code: "ORC-2025-129",
+    code: "ORC-0129",
     title: "Renovacao de licencas endpoint corporativo",
     status: "expired",
     priority: "low",
     owner: "Andre Pires",
-    probability: 35,
     createdAt: "2025-12-10",
     updatedAt: "2026-01-16",
     validUntil: "2026-01-20",

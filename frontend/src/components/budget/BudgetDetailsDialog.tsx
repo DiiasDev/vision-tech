@@ -2,21 +2,22 @@
 
 import Link from "next/link"
 import { type ComponentType } from "react"
-import { CalendarClock, CircleAlert, Percent, Target, UserRound, Wallet } from "lucide-react"
+import {
+  BriefcaseBusiness,
+  CalendarClock,
+  Percent,
+  UserRound,
+  Wallet,
+} from "lucide-react"
 
 import {
   type Budget,
-  budgetChannelLabel,
   budgetPriorityLabel,
   budgetPriorityTone,
-  budgetRiskLevelLabel,
-  budgetRiskLevelTone,
   budgetStatusLabel,
   budgetStatusTone,
-  buildBudgetRecommendations,
   calculateBudgetFinancials,
   daysUntilDate,
-  formatBudgetDate,
   formatBudgetDateLong,
   getBudgetItemMarginPercent,
   getBudgetItemNetTotal,
@@ -46,9 +47,33 @@ type BudgetDetailsDialogProps = {
 export function BudgetDetailsDialog({ budget, open, onOpenChange }: BudgetDetailsDialogProps) {
   if (!budget) return null
 
+  function openItemDetailsInNewTab(productId?: string | null) {
+    const normalizedProductId = productId?.trim()
+    if (!normalizedProductId) return
+
+    const targetUrl = `/products/id?productId=${encodeURIComponent(normalizedProductId)}`
+    const openedTab = globalThis.open(targetUrl, "_blank")
+    if (openedTab) openedTab.opener = null
+  }
+
   const financials = calculateBudgetFinancials(budget)
-  const recommendations = buildBudgetRecommendations(budget)
   const remainingDays = daysUntilDate(budget.validUntil)
+
+  const productsTotalAmount = toMoney(budget.productsTotalAmount, financials.netTotal)
+  const productsCostAmount = toMoney(budget.productsCostAmount, financials.costTotal)
+  const serviceTotalAmount = toMoney(budget.serviceTotalAmount, 0)
+  const serviceCostAmount = toMoney(budget.serviceCostAmount, 0)
+  const budgetDiscount = toMoney(budget.budgetDiscount, 0)
+  const budgetTotalCostAmount = toMoney(budget.budgetTotalCostAmount, Math.max(0, productsCostAmount + serviceCostAmount))
+  const budgetTotalAmount = toMoney(
+    budget.budgetTotalAmount,
+    Math.max(0, productsTotalAmount + serviceTotalAmount - budgetDiscount)
+  )
+  const budgetProfitPercent = toMoney(
+    budget.budgetProfitPercent,
+    budgetTotalAmount > 0 ? ((budgetTotalAmount - budgetTotalCostAmount) / budgetTotalAmount) * 100 : 0
+  )
+  const budgetProfitAmount = budgetTotalAmount - budgetTotalCostAmount
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -82,14 +107,14 @@ export function BudgetDetailsDialog({ budget, open, onOpenChange }: BudgetDetail
             </DialogHeader>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-              <SummaryCard icon={Wallet} label="Valor liquido" value={formatCurrencyBR(financials.netTotal)} />
-              <SummaryCard icon={Percent} label="Margem prevista" value={`${financials.marginPercent.toFixed(1)}%`} />
-              <SummaryCard icon={Target} label="Probabilidade" value={`${budget.probability}%`} />
+              <SummaryCard icon={Wallet} label="Total do orcamento" value={formatCurrencyBR(budgetTotalAmount)} />
+              <SummaryCard icon={Percent} label="Margem prevista" value={`${budgetProfitPercent.toFixed(1)}%`} />
               <SummaryCard
                 icon={CalendarClock}
                 label="Validade"
                 value={remainingDays >= 0 ? `${remainingDays} dias` : "Vencido"}
               />
+              <SummaryCard icon={BriefcaseBusiness} label="Servico" value={budget.serviceName?.trim() || "Nao informado"} />
               <SummaryCard icon={UserRound} label="Responsavel" value={budget.owner} />
             </div>
 
@@ -97,8 +122,7 @@ export function BudgetDetailsDialog({ budget, open, onOpenChange }: BudgetDetail
               <TabsList className="h-auto w-full flex-wrap justify-start gap-1 rounded-2xl border border-border/70 bg-card/70 p-2">
                 <TabsTrigger value="executive">Resumo executivo</TabsTrigger>
                 <TabsTrigger value="financial">Composicao financeira</TabsTrigger>
-                <TabsTrigger value="commercial">Historial comercial</TabsTrigger>
-                <TabsTrigger value="risk">Riscos e plano</TabsTrigger>
+                <TabsTrigger value="full">Dados completos</TabsTrigger>
               </TabsList>
 
               <TabsContent value="executive">
@@ -109,19 +133,18 @@ export function BudgetDetailsDialog({ budget, open, onOpenChange }: BudgetDetail
                     </h3>
 
                     <div className="space-y-2 text-sm">
-                      <p className="leading-relaxed text-foreground">{budget.scopeSummary}</p>
+                      <p className="leading-relaxed text-foreground">{toText(budget.scopeSummary)}</p>
                       <p className="text-muted-foreground">
-                        <strong>SLA:</strong> {budget.slaSummary}
+                        <strong>SLA:</strong> {toText(budget.slaSummary)}
                       </p>
                       <p className="text-muted-foreground">
-                        <strong>Pagamento:</strong> {budget.paymentTerms}
+                        <strong>Pagamento:</strong> {toText(budget.paymentTerms)}
                       </p>
                       <p className="text-muted-foreground">
-                        <strong>Entrega:</strong> {budget.deliveryTerm}
+                        <strong>Entrega:</strong> {toText(budget.deliveryTerm)}
                       </p>
                       <p className="text-muted-foreground">
-                        <strong>Aprovacao:</strong>{" "}
-                        {budget.approvalDate ? formatBudgetDateLong(budget.approvalDate) : "Nao informada"}
+                        <strong>Aprovacao:</strong> {formatOptionalDate(budget.approvalDate, "Nao informada")}
                       </p>
                     </div>
 
@@ -129,55 +152,52 @@ export function BudgetDetailsDialog({ budget, open, onOpenChange }: BudgetDetail
 
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                          Premissas
-                        </p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Premissas</p>
                         <ul className="mt-2 space-y-1.5 text-sm text-foreground">
-                          {budget.assumptions.map((assumption) => (
-                            <li key={assumption} className="rounded-lg border border-border/60 bg-background/55 px-3 py-2">
-                              {assumption}
+                          {budget.assumptions.length === 0 ? (
+                            <li className="rounded-lg border border-border/60 bg-background/55 px-3 py-2 text-muted-foreground">
+                              Nao informado
                             </li>
-                          ))}
+                          ) : (
+                            budget.assumptions.map((assumption) => (
+                              <li key={assumption} className="rounded-lg border border-border/60 bg-background/55 px-3 py-2">
+                                {assumption}
+                              </li>
+                            ))
+                          )}
                         </ul>
                       </div>
 
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Exclusoes</p>
                         <ul className="mt-2 space-y-1.5 text-sm text-foreground">
-                          {budget.exclusions.map((exclusion) => (
-                            <li key={exclusion} className="rounded-lg border border-border/60 bg-background/55 px-3 py-2">
-                              {exclusion}
+                          {budget.exclusions.length === 0 ? (
+                            <li className="rounded-lg border border-border/60 bg-background/55 px-3 py-2 text-muted-foreground">
+                              Nao informado
                             </li>
-                          ))}
+                          ) : (
+                            budget.exclusions.map((exclusion) => (
+                              <li key={exclusion} className="rounded-lg border border-border/60 bg-background/55 px-3 py-2">
+                                {exclusion}
+                              </li>
+                            ))
+                          )}
                         </ul>
                       </div>
                     </div>
                   </article>
 
                   <aside className="space-y-4 rounded-2xl border border-border/70 bg-card/70 p-4">
-                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                      Proximas acoes
-                    </h3>
-
-                    <div className="space-y-2">
-                      {budget.nextSteps.map((step) => (
-                        <div key={step.id} className="rounded-xl border border-border/70 bg-background/65 p-3">
-                          <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{formatBudgetDate(step.dueDate)}</p>
-                          <p className="mt-1 text-sm font-semibold">{step.action}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{step.owner}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">Objetivo: {step.objective}</p>
-                        </div>
-                      ))}
-                    </div>
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">Contato principal</h3>
 
                     <Separator />
 
                     <div className="rounded-xl border border-border/70 bg-background/65 p-3 text-sm">
-                      <p className="font-semibold">Contato principal</p>
-                      <p className="mt-1 text-muted-foreground">{budget.client.contactName}</p>
-                      <p className="text-muted-foreground">{budget.client.contactRole}</p>
-                      <p className="mt-2 text-muted-foreground">{budget.client.email}</p>
-                      <p className="text-muted-foreground">{budget.client.phone}</p>
+                      <p className="font-semibold">{toText(budget.client.name)}</p>
+                      <p className="mt-1 text-muted-foreground">{toText(budget.client.contactName)}</p>
+                      <p className="text-muted-foreground">{toText(budget.client.contactRole)}</p>
+                      <p className="mt-2 text-muted-foreground">{toText(budget.client.email)}</p>
+                      <p className="text-muted-foreground">{toText(budget.client.phone)}</p>
                     </div>
                   </aside>
                 </div>
@@ -186,49 +206,71 @@ export function BudgetDetailsDialog({ budget, open, onOpenChange }: BudgetDetail
               <TabsContent value="financial">
                 <div className="grid gap-4 xl:grid-cols-[1.45fr_1fr]">
                   <article className="overflow-hidden rounded-2xl border border-border/70 bg-card/70">
-                    <Table>
+                    <Table className="table-fixed [&_th]:whitespace-normal [&_td]:whitespace-normal">
                       <TableHeader>
                         <TableRow className="bg-muted/35 hover:bg-muted/35">
-                          <TableHead className="pl-4">Item</TableHead>
-                          <TableHead>Qtd.</TableHead>
-                          <TableHead>Preco unit.</TableHead>
-                          <TableHead>Desconto</TableHead>
-                          <TableHead>Total</TableHead>
-                          <TableHead className="pr-4">Margem</TableHead>
+                          <TableHead className="w-[38%] pl-3 pr-2">Item</TableHead>
+                          <TableHead className="w-[10%] px-2">Qtd.</TableHead>
+                          <TableHead className="w-[14%] px-2">Preco unit.</TableHead>
+                          <TableHead className="w-[14%] px-2">Desconto</TableHead>
+                          <TableHead className="w-[14%] px-2">Total</TableHead>
+                          <TableHead className="w-[10%] px-2 pr-3">Margem</TableHead>
                         </TableRow>
                       </TableHeader>
 
                       <TableBody>
-                        {budget.items.map((item) => {
-                          const itemMargin = getBudgetItemMarginPercent(item)
+                        {budget.items.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">
+                              Nenhum item cadastrado para este orcamento.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          budget.items.map((item) => {
+                            const itemMargin = getBudgetItemMarginPercent(item)
+                            const canOpenItemDetails = Boolean(item.productId?.trim())
 
-                          return (
-                            <TableRow key={item.id}>
-                              <TableCell className="pl-4">
-                                <p className="font-medium">{item.description}</p>
-                                <p className="text-xs text-muted-foreground">{item.category}</p>
-                              </TableCell>
-                              <TableCell>{item.quantity}</TableCell>
-                              <TableCell>{formatCurrencyBR(item.unitPrice)}</TableCell>
-                              <TableCell>{formatCurrencyBR(item.discount)}</TableCell>
-                              <TableCell className="font-medium">{formatCurrencyBR(getBudgetItemNetTotal(item))}</TableCell>
-                              <TableCell className="pr-4">
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    itemMargin < 20
-                                      ? "border-rose-300/70 bg-rose-100/80 text-rose-700"
-                                      : itemMargin < 30
-                                        ? "border-amber-300/70 bg-amber-100/80 text-amber-700"
-                                        : "border-emerald-300/70 bg-emerald-100/80 text-emerald-700"
-                                  }
-                                >
-                                  {itemMargin.toFixed(1)}%
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
+                            return (
+                              <TableRow
+                                key={item.id}
+                                className={canOpenItemDetails ? "cursor-pointer hover:bg-muted/35" : undefined}
+                                onClick={() => openItemDetailsInNewTab(item.productId)}
+                                onKeyDown={(event) => {
+                                  if (!canOpenItemDetails) return
+                                  if (event.key !== "Enter" && event.key !== " ") return
+                                  event.preventDefault()
+                                  openItemDetailsInNewTab(item.productId)
+                                }}
+                                role={canOpenItemDetails ? "button" : undefined}
+                                tabIndex={canOpenItemDetails ? 0 : undefined}
+                                aria-label={canOpenItemDetails ? `Abrir detalhes do item ${item.description}` : undefined}
+                              >
+                                <TableCell className="min-w-0 pl-3 pr-2">
+                                  <p className="truncate font-medium">{item.description}</p>
+                                  <p className="truncate text-xs text-muted-foreground">{item.category}</p>
+                                </TableCell>
+                                <TableCell className="px-2">{item.quantity}</TableCell>
+                                <TableCell className="px-2">{formatCurrencyBR(item.unitPrice)}</TableCell>
+                                <TableCell className="px-2">{formatCurrencyBR(item.discount)}</TableCell>
+                                <TableCell className="px-2 font-medium">{formatCurrencyBR(getBudgetItemNetTotal(item))}</TableCell>
+                                <TableCell className="px-2 pr-3">
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      itemMargin < 20
+                                        ? "border-rose-300/70 bg-rose-100/80 text-rose-700"
+                                        : itemMargin < 30
+                                          ? "border-amber-300/70 bg-amber-100/80 text-amber-700"
+                                          : "border-emerald-300/70 bg-emerald-100/80 text-emerald-700"
+                                    }
+                                  >
+                                    {itemMargin.toFixed(1)}%
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })
+                        )}
                       </TableBody>
                     </Table>
                   </article>
@@ -238,119 +280,128 @@ export function BudgetDetailsDialog({ budget, open, onOpenChange }: BudgetDetail
                       Resumo financeiro
                     </h3>
 
-                    <SummaryLine label="Subtotal bruto" value={formatCurrencyBR(financials.grossTotal)} />
-                    <SummaryLine label="Descontos" value={formatCurrencyBR(financials.discountTotal)} />
-                    <SummaryLine label="Valor liquido" value={formatCurrencyBR(financials.netTotal)} strong />
-                    <SummaryLine label="Custo estimado" value={formatCurrencyBR(financials.costTotal)} />
-                    <SummaryLine label="Margem (R$)" value={formatCurrencyBR(financials.marginValue)} />
-                    <SummaryLine label="Margem (%)" value={`${financials.marginPercent.toFixed(1)}%`} strong />
+                    <SummaryLine label="Subtotal bruto (itens)" value={formatCurrencyBR(financials.grossTotal)} />
+                    <SummaryLine label="Descontos itens" value={formatCurrencyBR(financials.discountTotal)} />
+                    <SummaryLine label="Total produtos" value={formatCurrencyBR(productsTotalAmount)} />
+                    <SummaryLine label="Custo produtos" value={formatCurrencyBR(productsCostAmount)} />
+                    <SummaryLine label="Total servicos" value={formatCurrencyBR(serviceTotalAmount)} />
+                    <SummaryLine label="Custo servicos" value={formatCurrencyBR(serviceCostAmount)} />
+                    <SummaryLine label="Desconto do orcamento" value={formatCurrencyBR(budgetDiscount)} />
+                    <SummaryLine label="Valor total orcamento" value={formatCurrencyBR(budgetTotalAmount)} strong />
+                    <SummaryLine label="Custo total orcamento" value={formatCurrencyBR(budgetTotalCostAmount)} />
+                    <SummaryLine label="Margem (R$)" value={formatCurrencyBR(budgetProfitAmount)} />
+                    <SummaryLine label="Margem (%)" value={`${budgetProfitPercent.toFixed(1)}%`} strong />
                   </aside>
                 </div>
               </TabsContent>
 
-              <TabsContent value="commercial">
-                <div className="grid gap-4 xl:grid-cols-[1.25fr_1fr]">
+              <TabsContent value="full">
+                <div className="grid gap-4 xl:grid-cols-2">
                   <article className="space-y-3 rounded-2xl border border-border/70 bg-card/70 p-4">
-                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                      Interacoes comerciais
-                    </h3>
-
-                    {budget.interactions.map((interaction) => (
-                      <div key={interaction.id} className="rounded-xl border border-border/70 bg-background/65 p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <Badge variant="outline">{budgetChannelLabel(interaction.channel)}</Badge>
-                          <p className="text-xs text-muted-foreground">{formatBudgetDateLong(interaction.date)}</p>
-                        </div>
-                        <p className="mt-2 text-sm">{interaction.summary}</p>
-                        <p className="mt-2 text-xs text-muted-foreground">Responsavel: {interaction.author}</p>
-                      </div>
-                    ))}
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">Dados gerais</h3>
+                    <DetailLine label="Codigo" value={budget.code} />
+                    <DetailLine label="Titulo" value={budget.title} />
+                    <DetailLine label="Status" value={budgetStatusLabel(budget.status)} />
+                    <DetailLine label="Prioridade" value={budgetPriorityLabel(budget.priority)} />
+                    <DetailLine label="Responsavel" value={budget.owner} />
+                    <DetailLine label="Criado em" value={formatBudgetDateLong(budget.createdAt)} />
+                    <DetailLine label="Atualizado em" value={formatBudgetDateLong(budget.updatedAt)} />
+                    <DetailLine label="Validade" value={formatBudgetDateLong(budget.validUntil)} />
+                    <DetailLine label="Aprovacao" value={formatOptionalDate(budget.approvalDate, "Nao informada")} />
+                    <DetailLine label="Fechamento previsto" value={formatBudgetDateLong(budget.expectedCloseDate)} />
+                    <DetailLine label="Pagamento" value={toText(budget.paymentTerms)} />
+                    <DetailLine label="Entrega" value={toText(budget.deliveryTerm)} />
                   </article>
 
-                  <aside className="space-y-3 rounded-2xl border border-border/70 bg-card/70 p-4">
-                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                      Recomendacoes
-                    </h3>
-
-                    <ul className="space-y-2 text-sm">
-                      {recommendations.map((recommendation) => (
-                        <li
-                          key={recommendation}
-                          className="rounded-xl border border-border/70 bg-background/65 px-3 py-2 text-foreground"
-                        >
-                          {recommendation}
-                        </li>
-                      ))}
-                    </ul>
-
-                    <Separator />
-
-                    <div className="rounded-xl border border-border/70 bg-background/65 p-3 text-sm">
-                      <p className="font-semibold">Fechamento esperado</p>
-                      <p className="mt-1 text-muted-foreground">{formatBudgetDateLong(budget.expectedCloseDate)}</p>
-                    </div>
-                  </aside>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="risk">
-                <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
                   <article className="space-y-3 rounded-2xl border border-border/70 bg-card/70 p-4">
-                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                      Mapa de riscos
-                    </h3>
-
-                    {budget.risks.map((risk) => (
-                      <div key={risk.id} className="rounded-xl border border-border/70 bg-background/65 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold">{risk.title}</p>
-                          <Badge variant="outline" className={budgetRiskLevelTone(risk.level)}>
-                            {budgetRiskLevelLabel(risk.level)}
-                          </Badge>
-                        </div>
-                        <p className="mt-2 text-xs text-muted-foreground">Impacto: {risk.impact}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Mitigacao: {risk.mitigation}</p>
-                      </div>
-                    ))}
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">Cliente</h3>
+                    <DetailLine label="Nome" value={toText(budget.client.name)} />
+                    <DetailLine label="Segmento" value={toText(budget.client.segment)} />
+                    <DetailLine label="Documento" value={toText(budget.client.document)} />
+                    <DetailLine label="Cidade" value={toText(budget.client.city)} />
+                    <DetailLine label="UF" value={toText(budget.client.state)} />
+                    <DetailLine label="Contato" value={toText(budget.client.contactName)} />
+                    <DetailLine label="Cargo" value={toText(budget.client.contactRole)} />
+                    <DetailLine label="Email" value={toText(budget.client.email)} />
+                    <DetailLine label="Telefone" value={toText(budget.client.phone)} />
                   </article>
 
-                  <aside className="space-y-4">
-                    <article className="rounded-2xl border border-border/70 bg-card/70 p-4">
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                        Alertas de validade
-                      </h3>
-                      <p className="mt-2 text-sm text-foreground">
-                        {remainingDays >= 0
-                          ? `Proposta com ${remainingDays} dias restantes antes da expiracao.`
-                          : "Proposta expirada. Recomendado clonar orcamento e reenviar com novas condicoes."}
-                      </p>
-                    </article>
+                  <article className="space-y-3 rounded-2xl border border-border/70 bg-card/70 p-4">
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">Servico</h3>
+                    <DetailLine label="Codigo" value={toText(budget.serviceCode)} mono />
+                    <DetailLine label="Nome" value={toText(budget.serviceName)} />
+                    <DetailLine label="Categoria" value={toText(budget.serviceCategory)} />
+                    <DetailLine label="Modelo de cobranca" value={toText(budget.serviceBillingModel)} />
+                    <DetailLine label="Duracao estimada" value={toText(budget.serviceEstimatedDuration)} />
+                    <DetailLine label="Responsavel" value={toText(budget.serviceResponsible)} />
+                    <DetailLine label="Status" value={toText(budget.serviceStatus)} />
+                    <DetailLine label="Descricao" value={toText(budget.serviceDescription)} multiline />
+                  </article>
 
-                    <article className="rounded-2xl border border-border/70 bg-card/70 p-4">
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                        Anexos
-                      </h3>
-                      <ul className="mt-2 space-y-2 text-sm text-foreground">
-                        {budget.attachments.map((attachment) => (
-                          <li key={attachment} className="rounded-lg border border-border/70 bg-background/65 px-3 py-2">
-                            {attachment}
-                          </li>
-                        ))}
-                      </ul>
-                    </article>
+                  <article className="space-y-3 rounded-2xl border border-border/70 bg-card/70 p-4">
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">Financeiro</h3>
+                    <DetailLine label="Total produtos" value={formatCurrencyBR(productsTotalAmount)} />
+                    <DetailLine label="Custo produtos" value={formatCurrencyBR(productsCostAmount)} />
+                    <DetailLine label="Total servicos" value={formatCurrencyBR(serviceTotalAmount)} />
+                    <DetailLine label="Custo servicos" value={formatCurrencyBR(serviceCostAmount)} />
+                    <DetailLine label="Desconto" value={formatCurrencyBR(budgetDiscount)} />
+                    <DetailLine label="Custo total" value={formatCurrencyBR(budgetTotalCostAmount)} />
+                    <DetailLine label="Valor total" value={formatCurrencyBR(budgetTotalAmount)} strong />
+                    <DetailLine label="Lucro (R$)" value={formatCurrencyBR(budgetProfitAmount)} />
+                    <DetailLine label="Lucro (%)" value={`${budgetProfitPercent.toFixed(2)}%`} strong />
+                  </article>
 
-                    {budget.risks.some((risk) => risk.level === "high") ? (
-                      <article className="rounded-2xl border border-rose-300/60 bg-rose-100/60 p-4 text-rose-900">
-                        <p className="inline-flex items-center gap-2 text-sm font-semibold">
-                          <CircleAlert className="h-4 w-4" />
-                          Existe risco alto ativo neste orcamento
-                        </p>
-                        <p className="mt-1 text-xs">
-                          Recomenda-se envolver lideranca comercial antes da rodada final de aprovacao.
-                        </p>
-                      </article>
-                    ) : null}
-                  </aside>
+                  <article className="space-y-3 rounded-2xl border border-border/70 bg-card/70 p-4">
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">Escopo e condicoes</h3>
+                    <DetailLine label="Resumo do escopo" value={toText(budget.scopeSummary)} multiline />
+                    <DetailLine label="Resumo de SLA" value={toText(budget.slaSummary)} multiline />
+                    <DetailLine label="Data de aprovacao" value={formatOptionalDate(budget.approvalDate, "Nao informada")} />
+                    <DetailLine label="Validade" value={formatBudgetDateLong(budget.validUntil)} />
+                    <DetailLine label="Fechamento previsto" value={formatBudgetDateLong(budget.expectedCloseDate)} />
+                  </article>
+
+                  <article className="space-y-3 rounded-2xl border border-border/70 bg-card/70 p-4 xl:col-span-2">
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      Itens detalhados ({budget.items.length})
+                    </h3>
+
+                    {budget.items.length === 0 ? (
+                      <div className="rounded-xl border border-border/70 bg-background/65 px-3 py-2 text-sm text-muted-foreground">
+                        Nenhum item cadastrado para este orcamento.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {budget.items.map((item, index) => {
+                          const grossTotal = item.quantity * item.unitPrice
+                          const netTotal = getBudgetItemNetTotal(item)
+                          const costTotal = item.quantity * item.internalCost
+                          const marginPercent = getBudgetItemMarginPercent(item)
+
+                          return (
+                            <div key={item.id} className="rounded-xl border border-border/70 bg-background/60 p-3">
+                              <p className="text-sm font-semibold text-foreground">Item {index + 1}</p>
+                              <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                                <DetailLine label="Codigo do item" value={toText(item.code)} mono />
+                                <DetailLine label="Descricao" value={toText(item.description)} />
+                                <DetailLine label="Categoria" value={toText(item.category)} />
+                                <DetailLine label="Quantidade" value={String(item.quantity)} />
+                                <DetailLine label="Horas estimadas" value={String(item.estimatedHours)} />
+                                <DetailLine label="Janela de entrega" value={toText(item.deliveryWindow)} />
+                                <DetailLine label="Preco unitario" value={formatCurrencyBR(item.unitPrice)} />
+                                <DetailLine label="Desconto item" value={formatCurrencyBR(item.discount)} />
+                                <DetailLine label="Subtotal bruto" value={formatCurrencyBR(grossTotal)} />
+                                <DetailLine label="Subtotal liquido" value={formatCurrencyBR(netTotal)} strong />
+                                <DetailLine label="Custo unitario" value={formatCurrencyBR(item.internalCost)} />
+                                <DetailLine label="Custo total" value={formatCurrencyBR(costTotal)} />
+                                <DetailLine label="Margem (%)" value={`${marginPercent.toFixed(2)}%`} strong />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </article>
+
                 </div>
               </TabsContent>
             </Tabs>
@@ -405,4 +456,49 @@ function SummaryLine({
       <span className={strong ? "font-semibold text-foreground" : "font-medium text-foreground"}>{value}</span>
     </div>
   )
+}
+
+function DetailLine({
+  label,
+  value,
+  strong = false,
+  mono = false,
+  multiline = false,
+}: {
+  label: string
+  value: string
+  strong?: boolean
+  mono?: boolean
+  multiline?: boolean
+}) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-background/65 px-3 py-2 text-sm">
+      <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p className={`mt-1 ${strong ? "font-semibold" : ""} ${mono ? "font-mono text-xs" : ""} ${multiline ? "whitespace-pre-wrap" : ""}`}>
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function toMoney(value: unknown, fallback = 0) {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value === "string") {
+    const compact = value.replace(/[^\d,.-]/g, "")
+    const normalized = compact.includes(",") ? compact.replace(/\./g, "").replace(",", ".") : compact
+    const parsed = Number.parseFloat(normalized)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return fallback
+}
+
+function toText(value: string | null | undefined, fallback = "Nao informado") {
+  if (typeof value !== "string") return fallback
+  const normalized = value.trim()
+  return normalized || fallback
+}
+
+function formatOptionalDate(value: string | undefined, fallback = "Nao informado") {
+  if (!value?.trim()) return fallback
+  return formatBudgetDateLong(value)
 }

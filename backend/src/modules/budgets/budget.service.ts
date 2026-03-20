@@ -67,11 +67,103 @@ export type CreateBudgetDto = {
   items: CreateBudgetItemDto[];
 };
 
+export type UpdateBudgetDto = Partial<
+  Omit<CreateBudgetDto, 'items' | 'clientId' | 'title' | 'owner' | 'validUntil'>
+> & {
+  clientId?: string;
+  title?: string;
+  owner?: string;
+  validUntil?: string | Date;
+  items?: CreateBudgetItemDto[];
+};
+
 type AuthenticatedUser = {
   id?: string;
   userId?: string;
   organizationId: string;
 };
+
+const budgetSelect = {
+  id: true,
+  code: true,
+  title: true,
+  status: true,
+  priority: true,
+  owner: true,
+  createdAt: true,
+  updatedAt: true,
+  validUntil: true,
+  approvalDate: true,
+  expectedCloseDate: true,
+  paymentTerms: true,
+  deliveryTerm: true,
+  slaSummary: true,
+  scopeSummary: true,
+  assumptions: true,
+  exclusions: true,
+  attachments: true,
+  clientId: true,
+  clientName: true,
+  clientSegment: true,
+  clientDocument: true,
+  clientCity: true,
+  clientState: true,
+  clientContactName: true,
+  clientContactRole: true,
+  clientEmail: true,
+  clientPhone: true,
+  serviceId: true,
+  serviceCode: true,
+  serviceName: true,
+  serviceCategory: true,
+  serviceBillingModel: true,
+  serviceDescription: true,
+  serviceEstimatedDuration: true,
+  serviceResponsible: true,
+  serviceStatus: true,
+  productsTotalAmount: true,
+  productsCostAmount: true,
+  serviceTotalAmount: true,
+  serviceCostAmount: true,
+  budgetDiscount: true,
+  budgetTotalCostAmount: true,
+  budgetTotalAmount: true,
+  budgetProfitPercent: true,
+  items: {
+    select: {
+      id: true,
+      productId: true,
+      description: true,
+      category: true,
+      quantity: true,
+      unitPrice: true,
+      discount: true,
+      internalCost: true,
+      estimatedHours: true,
+      deliveryWindow: true,
+      product: {
+        select: {
+          code: true,
+        },
+      },
+    },
+  },
+  client: {
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      document: true,
+      city: true,
+      state: true,
+      responsibleName: true,
+      responsibleEmail: true,
+      responsiblePhone: true,
+      email: true,
+      telephone: true,
+    },
+  },
+} satisfies Prisma.BudgetSelect;
 
 @Injectable()
 export class BudgetService {
@@ -124,12 +216,12 @@ export class BudgetService {
     return parsed;
   }
 
-  private async getNextBudgetCodeNumber(organizationId: string, year: number) {
+  private async getNextBudgetCodeNumber(organizationId: string) {
     const rows = await this.prisma.$queryRaw<Array<{ next_number: number }>>`
-      SELECT COALESCE(MAX(CAST(SPLIT_PART(code, '-', 3) AS INTEGER)), 0) + 1 AS next_number
+      SELECT COALESCE(MAX(CAST(SPLIT_PART(code, '-', 2) AS INTEGER)), 0) + 1 AS next_number
       FROM "Budget"
       WHERE "organizationId" = ${organizationId}
-        AND code ~ ${`^ORC-${year}-[0-9]+$`}
+        AND code ~ ${`^ORC-[0-9]{4}$`}
     `;
 
     const next = rows[0]?.next_number ?? 1;
@@ -287,13 +379,17 @@ export class BudgetService {
         }
       }
 
-      const currentYear = new Date().getFullYear();
-      const nextCodeNumber = await this.getNextBudgetCodeNumber(
-        organizationId,
-        currentYear,
-      );
-      const generatedCode = `ORC-${currentYear}-${String(nextCodeNumber).padStart(3, '0')}`;
-      const code = dto.code?.trim() || generatedCode;
+      const nextCodeNumber = await this.getNextBudgetCodeNumber(organizationId);
+      const generatedCode = `ORC-${String(nextCodeNumber).padStart(4, '0')}`;
+      const providedCode = dto.code?.trim() || null;
+      if (providedCode && !/^ORC-\d{4}$/i.test(providedCode)) {
+        return {
+          success: false,
+          message: 'Codigo invalido. Use o formato ORC-XXXX.',
+          data: null,
+        };
+      }
+      const code = providedCode ? providedCode.toUpperCase() : generatedCode;
 
       const newBudget = await this.prisma.budget.create({
         data: {
@@ -358,8 +454,9 @@ export class BudgetService {
             })),
           },
         },
-        include: {
-          items: true,
+        select: {
+          id: true,
+          code: true,
         },
       });
 
@@ -421,6 +518,480 @@ export class BudgetService {
         success: false,
         message: 'erro ao cadastrar orçamento',
         data: null,
+      };
+    }
+  }
+
+  async updateBudget(
+    budgetId: string,
+    currentUser: AuthenticatedUser,
+    dto: UpdateBudgetDto,
+  ) {
+    try {
+      const { organizationId } = currentUser;
+      if (!organizationId?.trim()) {
+        return {
+          success: false,
+          message: 'Sessao invalida. Faca login novamente.',
+          data: null,
+        };
+      }
+
+      const existingBudget = await this.prisma.budget.findFirst({
+        where: {
+          id: budgetId,
+          organizationId,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+
+      if (!existingBudget) {
+        return {
+          success: false,
+          message: 'Orcamento nao encontrado para atualizacao.',
+          data: null,
+        };
+      }
+
+      const updateData: Prisma.BudgetUpdateInput = {};
+
+      if (dto.code !== undefined) {
+        const code = dto.code?.trim() || '';
+        if (!code || !/^ORC-\d{4}$/i.test(code)) {
+          return {
+            success: false,
+            message: 'Codigo invalido. Use o formato ORC-XXXX.',
+            data: null,
+          };
+        }
+        updateData.code = code.toUpperCase();
+      }
+
+      if (dto.clientId !== undefined) {
+        const clientId = dto.clientId?.trim();
+        if (!clientId) {
+          return {
+            success: false,
+            message: 'Cliente e obrigatorio para atualizar orcamento.',
+            data: null,
+          };
+        }
+
+        const client = await this.prisma.client.findFirst({
+          where: {
+            id: clientId,
+            organizationId,
+            deletedAt: null,
+          },
+          select: { id: true },
+        });
+
+        if (!client) {
+          return {
+            success: false,
+            message: 'Cliente nao encontrado para esta organizacao.',
+            data: null,
+          };
+        }
+
+        updateData.client = { connect: { id: clientId } };
+      }
+
+      if (dto.serviceId !== undefined) {
+        const serviceId = dto.serviceId?.trim() || null;
+
+        if (!serviceId) {
+          updateData.service = { disconnect: true };
+        } else {
+          const service = await this.prisma.serviceCatalog.findFirst({
+            where: {
+              id: serviceId,
+              OR: [{ organizationId }, { organizationId: null }],
+            },
+            select: { id: true },
+          });
+
+          if (!service) {
+            return {
+              success: false,
+              message: 'Servico selecionado nao encontrado.',
+              data: null,
+            };
+          }
+
+          updateData.service = { connect: { id: serviceId } };
+        }
+      }
+
+      if (dto.items !== undefined) {
+        if (!Array.isArray(dto.items) || dto.items.length === 0) {
+          return {
+            success: false,
+            message: 'Adicione ao menos um item ao orcamento.',
+            data: null,
+          };
+        }
+
+        const providedProductIds = dto.items
+          .map((item) => item.productId?.trim() || null)
+          .filter((id): id is string => Boolean(id));
+
+        if (providedProductIds.length > 0) {
+          const products = await this.prisma.product.findMany({
+            where: {
+              id: { in: providedProductIds },
+              organizationId,
+              deletedAt: null,
+            },
+            select: { id: true },
+          });
+
+          const foundIds = new Set(products.map((item) => item.id));
+          const hasMissingProduct = providedProductIds.some(
+            (productId) => !foundIds.has(productId),
+          );
+
+          if (hasMissingProduct) {
+            return {
+              success: false,
+              message:
+                'Um ou mais produtos selecionados nao foram encontrados para esta organizacao.',
+              data: null,
+            };
+          }
+        }
+
+        updateData.items = {
+          deleteMany: {},
+          create: dto.items.map((item) => ({
+            productId: item.productId?.trim() || null,
+            description: item.description,
+            category: item.category ?? null,
+            quantity: this.parsePositiveInt(item.quantity, 1),
+            unitPrice: this.parseDecimal(item.unitPrice, 0),
+            discount: this.parseDecimal(item.discount, 0),
+            internalCost: this.parseDecimal(item.internalCost, 0),
+            estimatedHours: this.parsePositiveInt(item.estimatedHours, 1),
+            deliveryWindow: item.deliveryWindow ?? null,
+          })),
+        };
+      }
+
+      if (dto.title !== undefined) {
+        const title = dto.title?.trim();
+        if (!title) {
+          return {
+            success: false,
+            message: 'Titulo do orcamento e obrigatorio.',
+            data: null,
+          };
+        }
+        updateData.title = title;
+      }
+
+      if (dto.owner !== undefined) {
+        const owner = dto.owner?.trim();
+        if (!owner) {
+          return {
+            success: false,
+            message: 'Responsavel do orcamento e obrigatorio.',
+            data: null,
+          };
+        }
+        updateData.owner = owner;
+      }
+
+      if (dto.status !== undefined) {
+        const statusRaw = String(dto.status).trim().toUpperCase();
+        if (!Object.values(BudgetStatus).includes(statusRaw as BudgetStatus)) {
+          return {
+            success: false,
+            message: 'Status do orcamento invalido.',
+            data: null,
+          };
+        }
+        updateData.status = statusRaw as BudgetStatus;
+      }
+
+      if (dto.priority !== undefined) {
+        const priorityRaw = String(dto.priority).trim().toUpperCase();
+        if (
+          !Object.values(BudgetPriority).includes(priorityRaw as BudgetPriority)
+        ) {
+          return {
+            success: false,
+            message: 'Prioridade do orcamento invalida.',
+            data: null,
+          };
+        }
+        updateData.priority = priorityRaw as BudgetPriority;
+      }
+
+      if (dto.validUntil !== undefined) {
+        const validUntilDate = this.parseDate(dto.validUntil);
+        if (!validUntilDate) {
+          return {
+            success: false,
+            message: 'Data de validade invalida.',
+            data: null,
+          };
+        }
+        updateData.validUntil = validUntilDate;
+      }
+
+      if (dto.approvalDate !== undefined) {
+        if (!dto.approvalDate) {
+          updateData.approvalDate = null;
+        } else {
+          const approvalDate = this.parseDate(dto.approvalDate);
+          if (!approvalDate) {
+            return {
+              success: false,
+              message: 'Data de aprovacao invalida.',
+              data: null,
+            };
+          }
+          updateData.approvalDate = approvalDate;
+        }
+      }
+
+      if (dto.expectedCloseDate !== undefined) {
+        if (!dto.expectedCloseDate) {
+          updateData.expectedCloseDate = null;
+        } else {
+          const expectedCloseDate = this.parseDate(dto.expectedCloseDate);
+          if (!expectedCloseDate) {
+            return {
+              success: false,
+              message: 'Data de fechamento prevista invalida.',
+              data: null,
+            };
+          }
+          updateData.expectedCloseDate = expectedCloseDate;
+        }
+      }
+
+      if (dto.paymentTerms !== undefined) {
+        updateData.paymentTerms = dto.paymentTerms ?? null;
+      }
+      if (dto.deliveryTerm !== undefined) {
+        updateData.deliveryTerm = dto.deliveryTerm ?? null;
+      }
+      if (dto.slaSummary !== undefined) {
+        updateData.slaSummary = dto.slaSummary ?? null;
+      }
+      if (dto.scopeSummary !== undefined) {
+        updateData.scopeSummary = dto.scopeSummary ?? null;
+      }
+      if (dto.assumptions !== undefined) {
+        updateData.assumptions = dto.assumptions ?? [];
+      }
+      if (dto.exclusions !== undefined) {
+        updateData.exclusions = dto.exclusions ?? [];
+      }
+      if (dto.attachments !== undefined) {
+        updateData.attachments = dto.attachments ?? [];
+      }
+
+      if (dto.clientName !== undefined)
+        updateData.clientName = dto.clientName ?? null;
+      if (dto.clientSegment !== undefined)
+        updateData.clientSegment = dto.clientSegment ?? null;
+      if (dto.clientDocument !== undefined)
+        updateData.clientDocument = dto.clientDocument ?? null;
+      if (dto.clientCity !== undefined)
+        updateData.clientCity = dto.clientCity ?? null;
+      if (dto.clientState !== undefined)
+        updateData.clientState = dto.clientState ?? null;
+      if (dto.clientContactName !== undefined)
+        updateData.clientContactName = dto.clientContactName ?? null;
+      if (dto.clientContactRole !== undefined)
+        updateData.clientContactRole = dto.clientContactRole ?? null;
+      if (dto.clientEmail !== undefined)
+        updateData.clientEmail = dto.clientEmail ?? null;
+      if (dto.clientPhone !== undefined)
+        updateData.clientPhone = dto.clientPhone ?? null;
+
+      if (dto.serviceCode !== undefined)
+        updateData.serviceCode = dto.serviceCode ?? null;
+      if (dto.serviceName !== undefined)
+        updateData.serviceName = dto.serviceName ?? null;
+      if (dto.serviceCategory !== undefined)
+        updateData.serviceCategory = dto.serviceCategory ?? null;
+      if (dto.serviceBillingModel !== undefined)
+        updateData.serviceBillingModel = dto.serviceBillingModel ?? null;
+      if (dto.serviceDescription !== undefined)
+        updateData.serviceDescription = dto.serviceDescription ?? null;
+      if (dto.serviceEstimatedDuration !== undefined) {
+        updateData.serviceEstimatedDuration =
+          dto.serviceEstimatedDuration ?? null;
+      }
+      if (dto.serviceResponsible !== undefined)
+        updateData.serviceResponsible = dto.serviceResponsible ?? null;
+      if (dto.serviceStatus !== undefined)
+        updateData.serviceStatus = dto.serviceStatus ?? null;
+
+      if (dto.productsTotalAmount !== undefined) {
+        updateData.productsTotalAmount = this.parseDecimal(
+          dto.productsTotalAmount,
+          0,
+        );
+      }
+      if (dto.productsCostAmount !== undefined) {
+        updateData.productsCostAmount = this.parseDecimal(
+          dto.productsCostAmount,
+          0,
+        );
+      }
+      if (dto.serviceTotalAmount !== undefined) {
+        updateData.serviceTotalAmount = this.parseDecimal(
+          dto.serviceTotalAmount,
+          0,
+        );
+      }
+      if (dto.serviceCostAmount !== undefined) {
+        updateData.serviceCostAmount = this.parseDecimal(
+          dto.serviceCostAmount,
+          0,
+        );
+      }
+      if (dto.budgetDiscount !== undefined) {
+        updateData.budgetDiscount = this.parseDecimal(dto.budgetDiscount, 0);
+      }
+      if (dto.budgetTotalCostAmount !== undefined) {
+        updateData.budgetTotalCostAmount = this.parseDecimal(
+          dto.budgetTotalCostAmount,
+          0,
+        );
+      }
+      if (dto.budgetTotalAmount !== undefined) {
+        updateData.budgetTotalAmount = this.parseDecimal(
+          dto.budgetTotalAmount,
+          0,
+        );
+      }
+      if (dto.budgetProfitPercent !== undefined) {
+        updateData.budgetProfitPercent = this.parseDecimal(
+          dto.budgetProfitPercent,
+          0,
+        );
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return {
+          success: false,
+          message: 'Nenhum campo valido foi informado para atualizacao.',
+          data: null,
+        };
+      }
+
+      const updatedBudget = await this.prisma.budget.update({
+        where: {
+          id: budgetId,
+        },
+        data: updateData,
+        select: budgetSelect,
+      });
+
+      return {
+        success: true,
+        message: 'Orcamento atualizado com sucesso.',
+        data: updatedBudget,
+      };
+    } catch (error: any) {
+      console.error('Erro ao atualizar orcamento: ', error);
+
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          return {
+            success: false,
+            message: 'Ja existe um orcamento com o mesmo codigo.',
+            data: null,
+          };
+        }
+
+        if (error.code === 'P2003') {
+          return {
+            success: false,
+            message:
+              'Falha de relacionamento ao atualizar orcamento. Verifique cliente, servico e produtos.',
+            data: null,
+          };
+        }
+      }
+
+      return {
+        success: false,
+        message: 'Nao foi possivel atualizar o orcamento.',
+        data: null,
+      };
+    }
+  }
+
+  async deleteBudget(budgetId: string, currentUser: AuthenticatedUser) {
+    try {
+      const deletionResult = await this.prisma.budget.updateMany({
+        where: {
+          id: budgetId,
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+        },
+        data: {
+          deletedAt: new Date(),
+        },
+      });
+
+      if (deletionResult.count === 0) {
+        return {
+          success: false,
+          message: 'Orcamento nao encontrado para exclusao.',
+          data: null,
+        };
+      }
+
+      return {
+        success: true,
+        message: 'Orcamento excluido com sucesso.',
+        data: {
+          id: budgetId,
+        },
+      };
+    } catch (error: any) {
+      console.error('Erro ao excluir orcamento: ', error);
+      return {
+        success: false,
+        message: 'Nao foi possivel excluir o orcamento.',
+        data: null,
+      };
+    }
+  }
+
+  async getBudget(currentUser: AuthenticatedUser) {
+    try {
+      const budgets = await this.prisma.budget.findMany({
+        where: {
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+        },
+        select: budgetSelect,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Sucesso ao buscar orcamentos',
+        data: budgets,
+      };
+    } catch (error: any) {
+      console.error('Erro ao pegar orcamentos: ', error);
+
+      return {
+        success: false,
+        message: 'Erro ao pegar orcamentos',
+        data: [],
       };
     }
   }

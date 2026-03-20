@@ -331,7 +331,6 @@ model Budget {
   status      BudgetStatus   @default(DRAFT)
   priority    BudgetPriority @default(MEDIUM)
   owner       String
-  probability Int            @default(0)
 
   validUntil        DateTime
   approvalDate      DateTime?
@@ -387,7 +386,6 @@ model Budget {
   @@index([serviceId])
   @@index([status])
   @@index([priority])
-  @@index([probability])
   @@index([validUntil])
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react"
 import Link from "next/link"
-import { Eye, MoreHorizontal } from "lucide-react"
+import { ClipboardList, Copy, Eye, ExternalLink, FileCog, MoreHorizontal, Pencil, Send, Trash2 } from "lucide-react"
 
 import { TableFieldSelector, type TableFieldOption } from "@/components/layout/TableFieldSelector"
 import { BudgetDetailsDialog } from "@/components/budget/BudgetDetailsDialog"
@@ -18,6 +18,7 @@ import {
 } from "@/components/budget/budget-mock-data"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,42 +30,81 @@ import { cn } from "@/lib/utils"
 import { formatCurrencyBR } from "@/utils/Formatter"
 
 type BudgetFieldKey =
+  | "id"
   | "code"
   | "title"
   | "client"
+  | "clientDocument"
+  | "clientContact"
   | "owner"
+  | "items"
   | "value"
-  | "probability"
   | "validUntil"
   | "status"
   | "priority"
+  | "createdAt"
   | "updatedAt"
+  | "approvalDate"
+  | "expectedCloseDate"
+  | "paymentTerms"
+  | "deliveryTerm"
+  | "slaSummary"
+  | "scopeSummary"
+  | "assumptions"
+  | "exclusions"
+  | "interactions"
+  | "risks"
+  | "nextSteps"
+  | "attachments"
 
-const MAX_VISIBLE_FIELDS = 8
+const MAX_VISIBLE_FIELDS = 26
 const MIN_VISIBLE_FIELDS = 2
-const VISIBLE_FIELDS_STORAGE_KEY = "byncode:budget:table-visible-fields:v1"
+const VISIBLE_FIELDS_STORAGE_KEY = "byncode:budget:table-visible-fields:v2"
 const VISIBLE_FIELDS_STORAGE_EVENT = "byncode:budget:table-visible-fields:changed"
 
 const BUDGET_FIELD_OPTIONS: ReadonlyArray<TableFieldOption<BudgetFieldKey>> = [
+  { key: "id", label: "ID" },
   { key: "code", label: "Codigo" },
   { key: "title", label: "Escopo" },
   { key: "client", label: "Cliente" },
+  { key: "clientDocument", label: "Documento" },
+  { key: "clientContact", label: "Contato" },
   { key: "owner", label: "Responsavel" },
+  { key: "items", label: "Itens" },
   { key: "value", label: "Valor" },
-  { key: "probability", label: "Probabilidade" },
   { key: "validUntil", label: "Validade" },
   { key: "status", label: "Status" },
   { key: "priority", label: "Prioridade" },
+  { key: "createdAt", label: "Criado em" },
   { key: "updatedAt", label: "Atualizado" },
+  { key: "approvalDate", label: "Aprovacao" },
+  { key: "expectedCloseDate", label: "Fechamento previsto" },
+  { key: "paymentTerms", label: "Pagamento" },
+  { key: "deliveryTerm", label: "Entrega" },
+  { key: "slaSummary", label: "SLA" },
+  { key: "scopeSummary", label: "Resumo do escopo" },
+  { key: "assumptions", label: "Premissas" },
+  { key: "exclusions", label: "Exclusoes" },
+  { key: "interactions", label: "Interacoes" },
+  { key: "risks", label: "Riscos" },
+  { key: "nextSteps", label: "Proximas acoes" },
+  { key: "attachments", label: "Anexos" },
 ]
 
-const DEFAULT_VISIBLE_FIELDS: BudgetFieldKey[] = ["code", "client", "owner", "value", "probability", "status"]
+const DEFAULT_VISIBLE_FIELDS: BudgetFieldKey[] = ["code", "client", "owner", "items", "value", "status", "priority", "updatedAt"]
 const ALLOWED_FIELD_KEYS = new Set<BudgetFieldKey>(BUDGET_FIELD_OPTIONS.map((item) => item.key))
 let cachedVisibleFieldsRaw: string | null = null
 let cachedVisibleFieldsSnapshot: BudgetFieldKey[] = DEFAULT_VISIBLE_FIELDS
 
 type BudgetTableProps = {
   budgets: Budget[]
+  onEditBudget?: (budget: Budget) => void
+  onDeleteBudget?: (budget: Budget) => void
+  onDeleteBudgets?: (budgets: Budget[]) => void
+  onCopyBudget?: (budget: Budget) => void
+  onSendBudget?: (budget: Budget) => void
+  onGenerateOrder?: (budget: Budget) => void
+  onGenerateRequest?: (budget: Budget) => void
 }
 
 function normalizeVisibleFields(value: unknown): BudgetFieldKey[] {
@@ -137,14 +177,24 @@ function persistVisibleFields(fields: BudgetFieldKey[]) {
   }
 }
 
-function probabilityClass(value: number) {
-  if (value >= 70) return "bg-emerald-500"
-  if (value >= 45) return "bg-amber-500"
-  return "bg-rose-500"
+function summarizeList(values: string[]) {
+  if (values.length === 0) return "Nao informado"
+  if (values.length === 1) return values[0]
+  return `${values[0]} +${values.length - 1}`
 }
 
-export function BudgetTable({ budgets }: BudgetTableProps) {
+export function BudgetTable({
+  budgets,
+  onEditBudget,
+  onDeleteBudget,
+  onDeleteBudgets,
+  onCopyBudget,
+  onSendBudget,
+  onGenerateOrder,
+  onGenerateRequest,
+}: BudgetTableProps) {
   const [detailsBudget, setDetailsBudget] = useState<Budget | null>(null)
+  const [selectedBudgetIds, setSelectedBudgetIds] = useState<Set<string>>(new Set())
   const visibleFields = useSyncExternalStore(
     subscribeVisibleFields,
     readStoredVisibleFields,
@@ -152,6 +202,10 @@ export function BudgetTable({ budgets }: BudgetTableProps) {
   )
   const [draggingField, setDraggingField] = useState<BudgetFieldKey | null>(null)
   const [dropTargetField, setDropTargetField] = useState<BudgetFieldKey | null>(null)
+  const selectedVisibleBudgets = budgets.filter((budget) => selectedBudgetIds.has(budget.id))
+  const selectedVisibleCount = budgets.reduce((acc, budget) => (selectedBudgetIds.has(budget.id) ? acc + 1 : acc), 0)
+  const allSelected = budgets.length > 0 && selectedVisibleCount === budgets.length
+  const hasSelected = selectedVisibleCount > 0 && selectedVisibleCount < budgets.length
 
   function updateVisibleFields(next: BudgetFieldKey[] | ((prev: BudgetFieldKey[]) => BudgetFieldKey[])) {
     const currentFields = readStoredVisibleFields()
@@ -180,11 +234,40 @@ export function BudgetTable({ budgets }: BudgetTableProps) {
     setDropTargetField(null)
   }
 
+  function toggleAllVisibleBudgets(checked: boolean) {
+    setSelectedBudgetIds((prev) => {
+      const next = new Set(prev)
+
+      if (checked) {
+        budgets.forEach((budget) => next.add(budget.id))
+      } else {
+        budgets.forEach((budget) => next.delete(budget.id))
+      }
+
+      return next
+    })
+  }
+
+  function toggleBudgetSelection(budgetId: string, checked: boolean) {
+    setSelectedBudgetIds((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(budgetId)
+      else next.delete(budgetId)
+      return next
+    })
+  }
+
   function renderFieldCell(budget: Budget, field: BudgetFieldKey) {
     const financials = calculateBudgetFinancials(budget)
     const remainingDays = daysUntilDate(budget.validUntil)
 
     switch (field) {
+      case "id":
+        return (
+          <TableCell key={`${budget.id}-${field}`} className="font-mono text-xs text-muted-foreground">
+            {budget.id}
+          </TableCell>
+        )
       case "code":
         return (
           <TableCell key={`${budget.id}-${field}`} className="font-semibold text-foreground">
@@ -204,30 +287,39 @@ export function BudgetTable({ budgets }: BudgetTableProps) {
             <p className="text-xs text-muted-foreground">{budget.client.segment}</p>
           </TableCell>
         )
+      case "clientDocument":
+        return (
+          <TableCell key={`${budget.id}-${field}`}>
+            <p className="text-sm text-foreground">{budget.client.document}</p>
+            <p className="text-xs text-muted-foreground">
+              {budget.client.city} / {budget.client.state}
+            </p>
+          </TableCell>
+        )
+      case "clientContact":
+        return (
+          <TableCell key={`${budget.id}-${field}`}>
+            <p className="text-sm text-foreground">{budget.client.contactName}</p>
+            <p className="text-xs text-muted-foreground">{budget.client.phone}</p>
+          </TableCell>
+        )
       case "owner":
         return (
           <TableCell key={`${budget.id}-${field}`} className="text-muted-foreground">
             {budget.owner}
           </TableCell>
         )
+      case "items":
+        return (
+          <TableCell key={`${budget.id}-${field}`}>
+            <p className="text-sm font-medium text-foreground">{budget.items.length} itens</p>
+            <p className="text-xs text-muted-foreground">{summarizeList(budget.items.map((item) => item.description))}</p>
+          </TableCell>
+        )
       case "value":
         return (
           <TableCell key={`${budget.id}-${field}`} className="font-medium">
             {formatCurrencyBR(financials.netTotal)}
-          </TableCell>
-        )
-      case "probability":
-        return (
-          <TableCell key={`${budget.id}-${field}`}>
-            <div className="min-w-[8.5rem] space-y-1">
-              <p className="text-sm font-medium">{budget.probability}%</p>
-              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className={cn("h-full rounded-full", probabilityClass(budget.probability))}
-                  style={{ width: `${Math.max(0, Math.min(100, budget.probability))}%` }}
-                />
-              </div>
-            </div>
           </TableCell>
         )
       case "validUntil":
@@ -255,10 +347,96 @@ export function BudgetTable({ budgets }: BudgetTableProps) {
             </Badge>
           </TableCell>
         )
+      case "createdAt":
+        return (
+          <TableCell key={`${budget.id}-${field}`} className="text-muted-foreground">
+            {formatBudgetDate(budget.createdAt)}
+          </TableCell>
+        )
       case "updatedAt":
         return (
           <TableCell key={`${budget.id}-${field}`} className="text-muted-foreground">
             {formatBudgetDate(budget.updatedAt)}
+          </TableCell>
+        )
+      case "approvalDate":
+        return (
+          <TableCell key={`${budget.id}-${field}`} className="text-muted-foreground">
+            {budget.approvalDate ? formatBudgetDate(budget.approvalDate) : "Nao informado"}
+          </TableCell>
+        )
+      case "expectedCloseDate":
+        return (
+          <TableCell key={`${budget.id}-${field}`} className="text-muted-foreground">
+            {formatBudgetDate(budget.expectedCloseDate)}
+          </TableCell>
+        )
+      case "paymentTerms":
+        return (
+          <TableCell key={`${budget.id}-${field}`}>
+            <span className="block max-w-[18rem] whitespace-normal break-words text-sm text-muted-foreground">
+              {budget.paymentTerms}
+            </span>
+          </TableCell>
+        )
+      case "deliveryTerm":
+        return (
+          <TableCell key={`${budget.id}-${field}`}>
+            <span className="block max-w-[18rem] whitespace-normal break-words text-sm text-muted-foreground">
+              {budget.deliveryTerm}
+            </span>
+          </TableCell>
+        )
+      case "slaSummary":
+        return (
+          <TableCell key={`${budget.id}-${field}`}>
+            <span className="block max-w-[20rem] whitespace-normal break-words text-sm text-muted-foreground">
+              {budget.slaSummary}
+            </span>
+          </TableCell>
+        )
+      case "scopeSummary":
+        return (
+          <TableCell key={`${budget.id}-${field}`}>
+            <span className="block max-w-[24rem] whitespace-normal break-words text-sm text-muted-foreground">
+              {budget.scopeSummary}
+            </span>
+          </TableCell>
+        )
+      case "assumptions":
+        return (
+          <TableCell key={`${budget.id}-${field}`} className="text-muted-foreground">
+            {summarizeList(budget.assumptions)}
+          </TableCell>
+        )
+      case "exclusions":
+        return (
+          <TableCell key={`${budget.id}-${field}`} className="text-muted-foreground">
+            {summarizeList(budget.exclusions)}
+          </TableCell>
+        )
+      case "attachments":
+        return (
+          <TableCell key={`${budget.id}-${field}`} className="text-muted-foreground">
+            {summarizeList(budget.attachments)}
+          </TableCell>
+        )
+      case "interactions":
+        return (
+          <TableCell key={`${budget.id}-${field}`} className="text-muted-foreground">
+            {summarizeList(budget.interactions.map((interaction) => interaction.summary))}
+          </TableCell>
+        )
+      case "risks":
+        return (
+          <TableCell key={`${budget.id}-${field}`} className="text-muted-foreground">
+            {summarizeList(budget.risks.map((risk) => risk.title))}
+          </TableCell>
+        )
+      case "nextSteps":
+        return (
+          <TableCell key={`${budget.id}-${field}`} className="text-muted-foreground">
+            {summarizeList(budget.nextSteps.map((step) => step.action))}
           </TableCell>
         )
       default:
@@ -272,97 +450,172 @@ export function BudgetTable({ budgets }: BudgetTableProps) {
 
   return (
     <>
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/35 hover:bg-muted/35">
-            {visibleFields.map((field) => {
-              const fieldLabel = BUDGET_FIELD_OPTIONS.find((item) => item.key === field)?.label ?? field
+      {selectedVisibleCount > 0 ? (
+        <div className="flex items-center justify-between border-b border-border/70 bg-muted/20 px-6 py-3">
+          <p className="text-sm text-muted-foreground">
+            {selectedVisibleCount} {selectedVisibleCount === 1 ? "orcamento selecionado" : "orcamentos selecionados"}
+          </p>
 
-              return (
-                <TableHead
-                  key={field}
-                  draggable
-                  onDragStart={() => setDraggingField(field)}
-                  onDragOver={(event) => {
-                    event.preventDefault()
-                    if (draggingField && draggingField !== field) setDropTargetField(field)
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    if (draggingField) moveFieldByDrag(draggingField, field)
-                    handleHeaderDragEnd()
-                  }}
-                  onDragEnd={handleHeaderDragEnd}
-                  className={cn(
-                    "cursor-grab select-none active:cursor-grabbing",
-                    draggingField === field && "opacity-45",
-                    dropTargetField === field && draggingField !== field && "bg-primary/10 text-primary"
-                  )}
-                  title="Arraste para reordenar a coluna"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    {fieldLabel}
-                    <span className="text-[10px] text-muted-foreground">↕</span>
-                  </span>
-                </TableHead>
-              )
-            })}
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => onDeleteBudgets?.(selectedVisibleBudgets)}
+            disabled={!onDeleteBudgets || selectedVisibleBudgets.length === 0}
+          >
+            <Trash2 className="h-4 w-4" />
+            Excluir selecionados
+          </Button>
+        </div>
+      ) : null}
 
-            <TableHead className="w-[156px] px-4 text-center">
-              <div className="relative flex items-center justify-center">
-                <span className="block w-full text-center">Acoes</span>
-                <div className="absolute right-0 top-1/2 -translate-y-1/2">
-                  <TableFieldSelector
-                    fields={BUDGET_FIELD_OPTIONS}
-                    selectedFields={visibleFields}
-                    onSelectionChange={(fields) => updateVisibleFields(fields)}
-                    maxSelected={MAX_VISIBLE_FIELDS}
-                    minSelected={MIN_VISIBLE_FIELDS}
-                  />
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/35 hover:bg-muted/35">
+              <TableHead className="w-[56px] pl-6">
+                <Checkbox
+                  checked={allSelected ? true : hasSelected ? "indeterminate" : false}
+                  onCheckedChange={(checked) => toggleAllVisibleBudgets(Boolean(checked))}
+                  aria-label="Selecionar todos os orcamentos"
+                  className="size-5 border-2 border-primary/45 bg-background shadow-sm data-[state=checked]:border-primary data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary"
+                />
+              </TableHead>
+
+              {visibleFields.map((field) => {
+                const fieldLabel = BUDGET_FIELD_OPTIONS.find((item) => item.key === field)?.label ?? field
+
+                return (
+                  <TableHead
+                    key={field}
+                    draggable
+                    onDragStart={() => setDraggingField(field)}
+                    onDragOver={(event) => {
+                      event.preventDefault()
+                      if (draggingField && draggingField !== field) setDropTargetField(field)
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault()
+                      if (draggingField) moveFieldByDrag(draggingField, field)
+                      handleHeaderDragEnd()
+                    }}
+                    onDragEnd={handleHeaderDragEnd}
+                    className={cn(
+                      "cursor-grab select-none active:cursor-grabbing",
+                      draggingField === field && "opacity-45",
+                      dropTargetField === field && draggingField !== field && "bg-primary/10 text-primary"
+                    )}
+                    title="Arraste para reordenar a coluna"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      {fieldLabel}
+                      <span className="text-[10px] text-muted-foreground">↕</span>
+                    </span>
+                  </TableHead>
+                )
+              })}
+
+              <TableHead className="w-[156px] px-4 text-center">
+                <div className="relative flex items-center justify-center">
+                  <span className="block w-full text-center">Acoes</span>
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                    <TableFieldSelector
+                      fields={BUDGET_FIELD_OPTIONS}
+                      selectedFields={visibleFields}
+                      onSelectionChange={(fields) => updateVisibleFields(fields)}
+                      maxSelected={MAX_VISIBLE_FIELDS}
+                      minSelected={MIN_VISIBLE_FIELDS}
+                    />
+                  </div>
                 </div>
-              </div>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-
-        <TableBody>
-          {budgets.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={1 + visibleFields.length} className="px-6 py-12 text-center text-sm text-muted-foreground">
-                Nenhum orcamento encontrado para os filtros atuais.
-              </TableCell>
+              </TableHead>
             </TableRow>
-          ) : (
-            budgets.map((budget) => (
-              <TableRow key={budget.id} className="cursor-pointer" onClick={() => setDetailsBudget(budget)}>
-                {visibleFields.map((field) => renderFieldCell(budget, field))}
+          </TableHeader>
 
-                <TableCell className="w-[156px] px-4 text-center" onClick={(event) => event.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button type="button" variant="ghost" size="icon-sm" className="mx-auto h-8 w-8 rounded-lg">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Abrir acoes de {budget.code}</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-
-                    <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5">
-                      <DropdownMenuItem className="rounded-lg" onSelect={() => setDetailsBudget(budget)}>
-                        <Eye className="h-4 w-4" />
-                        Ver detalhes
-                      </DropdownMenuItem>
-
-                      <DropdownMenuItem asChild className="rounded-lg">
-                        <Link href={`/budget/id?budgetId=${budget.id}`}>Abrir pagina completa</Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+          <TableBody>
+            {budgets.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={2 + visibleFields.length} className="px-6 py-12 text-center text-sm text-muted-foreground">
+                  Nenhum orcamento encontrado para os filtros atuais.
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            ) : (
+              budgets.map((budget) => (
+                <TableRow key={budget.id} className="cursor-pointer" onClick={() => setDetailsBudget(budget)}>
+                  <TableCell className="pl-6" onClick={(event) => event.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedBudgetIds.has(budget.id)}
+                      onCheckedChange={(checked) => toggleBudgetSelection(budget.id, Boolean(checked))}
+                      aria-label={`Selecionar ${budget.code}`}
+                      className="size-5 border-2 border-primary/45 bg-background shadow-sm data-[state=checked]:border-primary"
+                    />
+                  </TableCell>
+
+                  {visibleFields.map((field) => renderFieldCell(budget, field))}
+
+                  <TableCell className="w-[156px] px-4 text-center" onClick={(event) => event.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon-sm" className="mx-auto h-8 w-8 rounded-lg">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Abrir ações de {budget.code}</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+
+                      <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5">
+                        <DropdownMenuItem className="rounded-lg" onSelect={() => setDetailsBudget(budget)}>
+                          <Eye className="h-4 w-4" />
+                          Ver detalhes
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem className="rounded-lg" onSelect={() => onEditBudget?.(budget)}>
+                          <Pencil className="h-4 w-4" />
+                          Editar
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem className="rounded-lg" onSelect={() => onCopyBudget?.(budget)}>
+                          <Copy className="h-4 w-4" />
+                          Copiar orçamento
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem asChild className="rounded-lg">
+                          <Link href={`/budget/id?budgetId=${budget.id}`}>
+                            <ExternalLink className="h-4 w-4" />
+                            Abrir página completa
+                          </Link>
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem className="rounded-lg" onSelect={() => onSendBudget?.(budget)}>
+                          <Send className="h-4 w-4" />
+                          Enviar orçamento
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem className="rounded-lg" onSelect={() => onGenerateOrder?.(budget)}>
+                          <FileCog className="h-4 w-4" />
+                          Gerar OS
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem className="rounded-lg" onSelect={() => onGenerateRequest?.(budget)}>
+                          <ClipboardList className="h-4 w-4" />
+                          Gerar pedido
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                          className="rounded-lg text-rose-600 focus:text-rose-600"
+                          onSelect={() => onDeleteBudget?.(budget)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <BudgetDetailsDialog
         budget={detailsBudget}
