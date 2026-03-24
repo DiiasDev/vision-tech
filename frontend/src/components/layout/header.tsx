@@ -31,6 +31,7 @@ const labelMap: Record<string, string> = {
   "contas-a-receber": "Contas a Receber",
   "fluxo-de-caixa": "Fluxo de Caixa",
   "agenda-tecnica": "Agenda Tecnica",
+  ordens: "Ordens de Servico",
   "perfis": "Perfis de Acesso",
 }
 

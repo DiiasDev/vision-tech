@@ -209,6 +209,43 @@
     background: color-mix(in oklab, var(--primary) 65%, var(--muted-foreground) 35%);
   }
 
+  .modal-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color:
+      color-mix(in oklab, var(--primary) 72%, var(--chart-2) 28%)
+      color-mix(in oklab, var(--muted) 78%, var(--background) 22%);
+  }
+
+  .modal-scrollbar::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  .modal-scrollbar::-webkit-scrollbar-track {
+    background: color-mix(in oklab, var(--muted) 74%, var(--background) 26%);
+    border: 3px solid color-mix(in oklab, var(--card) 88%, transparent);
+    border-radius: 999px;
+  }
+
+  .modal-scrollbar::-webkit-scrollbar-thumb {
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in oklab, var(--primary) 86%, white 14%),
+        color-mix(in oklab, var(--primary) 70%, black 30%)
+      );
+    border: 2px solid color-mix(in oklab, var(--card) 92%, transparent);
+    border-radius: 999px;
+  }
+
+  .modal-scrollbar::-webkit-scrollbar-thumb:hover {
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in oklab, var(--primary) 94%, white 6%),
+        color-mix(in oklab, var(--primary) 78%, black 22%)
+      );
+  }
+
   .build-panel {
     border-color: color-mix(in oklab, var(--border) 86%, var(--foreground) 14%);
     background:

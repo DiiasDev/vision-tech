@@ -995,4 +995,12 @@ export class BudgetService {
       };
     }
   }
+
+  async budgetToOrder(currentUser: AuthenticatedUser, dto: CreateBudgetDto){
+    try{
+
+    }catch(error: any){
+      
+    }
+  }
 }
