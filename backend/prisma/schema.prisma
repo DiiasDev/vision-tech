@@ -60,6 +60,22 @@ enum BudgetPriority {
   HIGH
 }
 
+enum ServiceOrderStatus {
+  DRAFT
+  SCHEDULED
+  IN_PROGRESS
+  AWAITING_PARTS
+  COMPLETED
+  CANCELED
+}
+
+enum ServiceOrderPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 model Organization {
   id        String             @id @default(uuid())
   name      String
@@ -69,12 +85,13 @@ model Organization {
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
-  users     UserOrganization[]
-  roles     Role[]
-  clients   Client[]
-  products  Product[]
-  suppliers Supplier[]
-  budgets   Budget[]
+  users         UserOrganization[]
+  roles         Role[]
+  clients       Client[]
+  products      Product[]
+  suppliers     Supplier[]
+  budgets       Budget[]
+  serviceOrders ServiceOrder[]
 }
 
 model User {
@@ -88,10 +105,13 @@ model User {
 
   organizations UserOrganization[]
 
-  clientsCreated     Client[]  @relation("ClientCreatedBy")
-  clientsResponsible Client[]  @relation("ClientResponsible")
-  productsCreated    Product[] @relation("ProductCreatedByUser")
-  budgetsCreated     Budget[]  @relation("BudgetCreatedByUser")
+  clientsCreated               Client[]               @relation("ClientCreatedBy")
+  clientsResponsible           Client[]               @relation("ClientResponsible")
+  productsCreated              Product[]              @relation("ProductCreatedByUser")
+  budgetsCreated               Budget[]               @relation("BudgetCreatedByUser")
+  serviceOrdersCreated         ServiceOrder[]         @relation("ServiceOrderCreatedByUser")
+  serviceOrdersResponsible     ServiceOrder[]         @relation("ServiceOrderResponsibleUser")
+  serviceOrderTimelineAuthored ServiceOrderTimeline[] @relation("ServiceOrderTimelineAuthorUser")
 }
 
 model UserOrganization {
@@ -187,7 +207,8 @@ model Client {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  budgets Budget[]
+  budgets       Budget[]
+  serviceOrders ServiceOrder[]
 
   @@unique([organizationId, code])
   @@unique([organizationId, document])
@@ -236,7 +257,8 @@ model Product {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  budgetItems BudgetItem[]
+  budgetItems       BudgetItem[]
+  serviceOrderItems ServiceOrderProduct[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -301,7 +323,9 @@ model ServiceCatalog {
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
-  budgets Budget[]
+  budgets              Budget[]
+  serviceOrders        ServiceOrder[]
+  serviceOrderServices ServiceOrderService[]
 
   @@unique([code])
   @@index([organizationId])
@@ -326,11 +350,11 @@ model Budget {
   serviceId String?
   service   ServiceCatalog? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
 
-  code        String
-  title       String
-  status      BudgetStatus   @default(DRAFT)
-  priority    BudgetPriority @default(MEDIUM)
-  owner       String
+  code     String
+  title    String
+  status   BudgetStatus   @default(DRAFT)
+  priority BudgetPriority @default(MEDIUM)
+  owner    String
 
   validUntil        DateTime
   approvalDate      DateTime?
@@ -377,7 +401,8 @@ model Budget {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  items BudgetItem[]
+  items         BudgetItem[]
+  serviceOrders ServiceOrder[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -412,4 +437,138 @@ model BudgetItem {
 
   @@index([budgetId])
   @@index([productId])
+}
+
+model ServiceOrder {
+  id String @id @default(uuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  budgetId String?
+  budget   Budget? @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  serviceId String?
+  service   ServiceCatalog? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   User?   @relation("ServiceOrderCreatedByUser", fields: [createdById], references: [id], onDelete: SetNull)
+
+  responsibleUserId String?
+  responsibleUser   User?   @relation("ServiceOrderResponsibleUser", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+
+  code        String
+  title       String
+  description String?
+  status      ServiceOrderStatus   @default(DRAFT)
+  priority    ServiceOrderPriority @default(MEDIUM)
+
+  term        DateTime
+  scheduling  DateTime?
+  responsible String
+
+  progress Int @default(0)
+
+  totalCost     Decimal @default(0) @db.Decimal(12, 2)
+  totalValue    Decimal @default(0) @db.Decimal(12, 2)
+  marginValue   Decimal @default(0) @db.Decimal(12, 2)
+  marginPercent Decimal @default(0) @db.Decimal(5, 2)
+
+  services ServiceOrderService[]
+  products ServiceOrderProduct[]
+  timeline ServiceOrderTimeline[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([budgetId])
+  @@index([clientId])
+  @@index([serviceId])
+  @@index([createdById])
+  @@index([responsibleUserId])
+  @@index([status])
+  @@index([priority])
+  @@index([term])
+  @@index([scheduling])
+}
+
+model ServiceOrderService {
+  id String @id @default(uuid())
+
+  serviceOrderId String
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+
+  serviceCatalogId String?
+  serviceCatalog   ServiceCatalog? @relation(fields: [serviceCatalogId], references: [id], onDelete: SetNull)
+
+  code              String
+  name              String
+  category          String
+  serviceType       String
+  billingModel      String
+  billingUnit       String
+  estimatedDuration String
+  complexityLevel   String
+  responsible       String
+  catalogStatus     String
+
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  sortOrder   Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([serviceOrderId])
+  @@index([serviceCatalogId])
+  @@index([serviceOrderId, sortOrder])
+}
+
+model ServiceOrderProduct {
+  id String @id @default(uuid())
+
+  serviceOrderId String
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  description String
+  quantity    Int     @default(1)
+  unitCost    Decimal @db.Decimal(12, 2)
+  totalCost   Decimal @default(0) @db.Decimal(12, 2)
+  status      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([serviceOrderId])
+  @@index([productId])
+}
+
+model ServiceOrderTimeline {
+  id String @id @default(uuid())
+
+  serviceOrderId String
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+
+  authorUserId String?
+  authorUser   User?   @relation("ServiceOrderTimelineAuthorUser", fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  authorName String?
+  event      String
+  notes      String?
+  eventAt    DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  @@index([serviceOrderId])
+  @@index([authorUserId])
+  @@index([eventAt])
 }

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 
 import { AlertComponent, ComponentAlert, type ComponentAlertState } from "@/components/layout/AlertComponent"
+import { FormServiceOrder } from "@/components/services/serviceOrder/FormServiceOrder"
 import { ServiceOrderFilters } from "@/components/services/serviceOrder/ServiceOrderFilters"
 import { ServiceOrderHeader } from "@/components/services/serviceOrder/ServiceOrderHeader"
 import { ServiceOrderStats } from "@/components/services/serviceOrder/ServiceOrderStats"
@@ -145,6 +146,7 @@ export function ServiceOrderWorkspace({ detailsBasePath = "/services/serviceOrde
   const [technicianFilter, setTechnicianFilter] = useState("all")
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set())
   const [feedback, setFeedback] = useState<ComponentAlertState | null>(null)
+  const [showServiceOrderForm, setShowServiceOrderForm] = useState(false)
 
   const technicians = useMemo(() => {
     const uniqueTechnicians = new Set<string>()
@@ -183,7 +185,8 @@ export function ServiceOrderWorkspace({ detailsBasePath = "/services/serviceOrde
   }
 
   function handleOpenNewOrder() {
-    setFeedback(ComponentAlert.Info("Fluxo de criacao da OS sera conectado ao backend em seguida."))
+    setFeedback(null)
+    setShowServiceOrderForm(true)
   }
 
   function handleDeleteOrder(order: ServiceOrder) {
@@ -375,6 +378,17 @@ export function ServiceOrderWorkspace({ detailsBasePath = "/services/serviceOrde
 
   return (
     <div className="relative space-y-6 overflow-hidden pb-4">
+      <FormServiceOrder
+        open={showServiceOrderForm}
+        onClose={() => setShowServiceOrderForm(false)}
+        existingCodes={orders.map((order) => order.code)}
+        onCreated={(newOrder) => {
+          setOrders((prev) => [ensureOrderServiceItems(newOrder), ...prev])
+          setShowServiceOrderForm(false)
+        }}
+        onFeedback={setFeedback}
+      />
+
       <ServiceOrderHeader onAddOrder={handleOpenNewOrder} />
 
       <AlertComponent alert={feedback} onClose={() => setFeedback(null)} />
