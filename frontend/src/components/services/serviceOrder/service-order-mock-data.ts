@@ -71,6 +71,7 @@ export type ServiceOrder = {
   coordinator: string
   technician: string
   serviceName: string
+  sourceBudgetId?: string | null
   sourceBudgetCode?: string | null
   executionAddress: string
   estimatedValue: number
