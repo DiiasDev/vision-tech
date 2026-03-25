@@ -343,6 +343,24 @@ export function ServiceOrderTable({
         )
       }
       case "sourceBudget":
+        if (order.sourceBudgetCode && order.sourceBudgetId) {
+          const budgetHref = `/budget/id?budgetId=${order.sourceBudgetId}`
+
+          return (
+            <TableCell key={`${order.id}-${field}`}>
+              <Link
+                href={budgetHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline-offset-2 hover:underline"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {order.sourceBudgetCode}
+              </Link>
+            </TableCell>
+          )
+        }
+
         return (
           <TableCell key={`${order.id}-${field}`} className="text-muted-foreground">
             {order.sourceBudgetCode || "-"}

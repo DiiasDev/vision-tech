@@ -70,6 +70,7 @@ export function ServiceOrderDetailsWorkspace({ ordersHref }: ServiceOrderDetails
   const financials = calculateServiceOrderFinancials(selectedOrder)
   const progress = calculateServiceOrderProgress(selectedOrder)
   const remainingDays = daysUntilServiceOrderDeadline(selectedOrder.deadlineDate)
+  const sourceBudgetHref = selectedOrder.sourceBudgetId ? `/budget/id?budgetId=${selectedOrder.sourceBudgetId}` : null
 
   return (
     <div className="space-y-6 pb-6">
@@ -136,6 +137,23 @@ export function ServiceOrderDetailsWorkspace({ ordersHref }: ServiceOrderDetails
           <InfoLine label="Endereco" value={selectedOrder.executionAddress} />
           <InfoLine label="Servico" value={selectedOrder.serviceName} />
           <InfoLine label="Coordenador" value={selectedOrder.coordinator} />
+          <InfoLine
+            label="Orcamento origem"
+            value={
+              sourceBudgetHref && selectedOrder.sourceBudgetCode ? (
+                <Link
+                  href={sourceBudgetHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline-offset-2 hover:underline"
+                >
+                  {selectedOrder.sourceBudgetCode}
+                </Link>
+              ) : (
+                selectedOrder.sourceBudgetCode || "-"
+              )
+            }
+          />
           <InfoLine label="Agendamento" value={formatServiceOrderDateTime(selectedOrder.scheduledAt)} />
           <InfoLine label="Atualizada em" value={formatServiceOrderDate(selectedOrder.updatedAt)} />
         </div>
@@ -303,7 +321,7 @@ function InfoLine({
   strong = false,
 }: {
   label: string
-  value: string
+  value: React.ReactNode
   strong?: boolean
 }) {
   return (

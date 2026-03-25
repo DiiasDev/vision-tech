@@ -310,14 +310,6 @@ function buildFields(params: {
       colSpan: 2,
     },
     {
-      name: "sourceBudgetCode",
-      label: "Codigo do orcamento",
-      type: "text",
-      section: "Identificacao",
-      readOnly: true,
-      autoFilled: true,
-    },
-    {
       name: "title",
       label: "Titulo",
       type: "text",
@@ -532,10 +524,7 @@ function applyProductsSelection(
 
 function applyBudgetSelection(values: Record<string, string>, budget: Budget | null) {
   if (!budget) {
-    return {
-      ...values,
-      sourceBudgetCode: "",
-    }
+    return values
   }
 
   const budgetTotalAmount = typeof budget.budgetTotalAmount === "number" ? budget.budgetTotalAmount : 0
@@ -544,7 +533,6 @@ function applyBudgetSelection(values: Record<string, string>, budget: Budget | n
 
   return {
     ...values,
-    sourceBudgetCode: budget.code,
     title: budget.title?.trim() || values.title,
     description: budget.scopeSummary?.trim() || values.description,
     clientId: budget.client.id?.trim() || values.clientId,
@@ -1018,7 +1006,8 @@ export function FormServiceOrder({
         coordinator: responsibleName,
         technician: responsibleName,
         serviceName,
-        sourceBudgetCode: selectedBudget?.code?.trim() || values.sourceBudgetCode?.trim() || null,
+        sourceBudgetId: selectedBudget?.id?.trim() || null,
+        sourceBudgetCode: selectedBudget?.code?.trim() || null,
         executionAddress: values.executionAddress?.trim() || fallbackExecutionAddress,
         estimatedValue: safeEstimatedValue,
         checklist,

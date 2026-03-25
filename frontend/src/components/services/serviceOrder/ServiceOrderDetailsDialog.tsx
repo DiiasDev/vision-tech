@@ -86,6 +86,7 @@ export function ServiceOrderDetailsDialog({
   const remainingDays = daysUntilServiceOrderDeadline(order.deadlineDate)
   const serviceItems = order.serviceItems ?? []
   const completedServiceItems = serviceItems.filter((item) => item.checkStatus === "done").length
+  const sourceBudgetHref = order.sourceBudgetId ? `/budget/id?budgetId=${order.sourceBudgetId}` : null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -146,6 +147,23 @@ export function ServiceOrderDetailsDialog({
                     <InfoLine label="Telefone" value={order.client.phone} />
                     <InfoLine label="Servico" value={order.serviceName} />
                     <InfoLine label="Coordenador" value={order.coordinator} />
+                    <InfoLine
+                      label="Orcamento origem"
+                      value={
+                        sourceBudgetHref && order.sourceBudgetCode ? (
+                          <Link
+                            href={sourceBudgetHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary underline-offset-2 hover:underline"
+                          >
+                            {order.sourceBudgetCode}
+                          </Link>
+                        ) : (
+                          order.sourceBudgetCode || "-"
+                        )
+                      }
+                    />
                     <InfoLine label="Agendamento" value={formatServiceOrderDateTime(order.scheduledAt)} />
                     <InfoLine label="Atualizada em" value={formatServiceOrderDate(order.updatedAt)} />
                   </div>
@@ -363,7 +381,7 @@ function InfoLine({
   strong = false,
 }: {
   label: string
-  value: string
+  value: React.ReactNode
   strong?: boolean
 }) {
   return (

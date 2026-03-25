@@ -304,6 +304,7 @@ function mapServiceOrderFromApi(order: ApiServiceOrder): ServiceOrder {
     coordinator: order.createdBy?.name?.trim() || responsibleName,
     technician: responsibleName,
     serviceName,
+    sourceBudgetId: order.budget?.id?.trim() || order.budgetId?.trim() || null,
     sourceBudgetCode: order.budget?.code?.trim() || null,
     executionAddress: executionAddress || locationLabel || "Endereco nao informado",
     estimatedValue: parseNumberValue(order.totalValue, 0),
