@@ -157,32 +157,17 @@ export function ServiceOrderDetailsDialog({
                     <p className="text-muted-foreground">{order.description}</p>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2 rounded-xl border border-border/70 bg-background/65 p-3 text-sm">
-                      <p className="font-semibold">Checklist</p>
-                      {order.checklist.length === 0 ? (
-                        <p className="text-muted-foreground">Sem itens no checklist.</p>
-                      ) : (
-                        order.checklist.map((item, index) => (
-                          <p key={`${order.id}-check-${index}`} className="text-muted-foreground">
-                            - {item}
-                          </p>
-                        ))
-                      )}
-                    </div>
-
-                    <div className="space-y-2 rounded-xl border border-border/70 bg-background/65 p-3 text-sm">
-                      <p className="font-semibold">Observacoes</p>
-                      {order.notes.length === 0 ? (
-                        <p className="text-muted-foreground">Sem observacoes registradas.</p>
-                      ) : (
-                        order.notes.map((item, index) => (
-                          <p key={`${order.id}-note-${index}`} className="text-muted-foreground">
-                            - {item}
-                          </p>
-                        ))
-                      )}
-                    </div>
+                  <div className="space-y-2 rounded-xl border border-border/70 bg-background/65 p-3 text-sm">
+                    <p className="font-semibold">Observacoes</p>
+                    {order.notes.length === 0 ? (
+                      <p className="text-muted-foreground">Sem observacoes registradas.</p>
+                    ) : (
+                      order.notes.map((item, index) => (
+                        <p key={`${order.id}-note-${index}`} className="text-muted-foreground">
+                          - {item}
+                        </p>
+                      ))
+                    )}
                   </div>
                 </article>
               </TabsContent>

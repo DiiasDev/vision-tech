@@ -1140,6 +1140,42 @@ export function FormBudget({
     }
   }, [open, onFeedback])
 
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return
+
+    const previousBodyOverflow = document.body.style.overflow
+    const previousBodyPaddingRight = document.body.style.paddingRight
+    const previousHtmlOverflow = document.documentElement.style.overflow
+    const scrollContainer =
+      document.querySelector<HTMLElement>("[data-app-scroll-container]") ??
+      document.querySelector<HTMLElement>("main.overflow-y-auto")
+    const previousContainerOverflow = scrollContainer?.style.overflow ?? ""
+    const previousContainerOverflowX = scrollContainer?.style.overflowX ?? ""
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
+
+    document.body.style.overflow = "hidden"
+    document.documentElement.style.overflow = "hidden"
+    document.body.classList.add("modal-open")
+    if (scrollContainer) {
+      scrollContainer.style.overflow = "hidden"
+      scrollContainer.style.overflowX = "hidden"
+    }
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`
+    }
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      document.body.style.paddingRight = previousBodyPaddingRight
+      document.documentElement.style.overflow = previousHtmlOverflow
+      document.body.classList.remove("modal-open")
+      if (scrollContainer) {
+        scrollContainer.style.overflow = previousContainerOverflow
+        scrollContainer.style.overflowX = previousContainerOverflowX
+      }
+    }
+  }, [open])
+
   const fields = useMemo<GenericField[]>(() => {
     const now = new Date()
     const defaultValidUntil = toDateOnly(addDays(now, 15))
@@ -2083,11 +2119,11 @@ export function FormBudget({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-background/60 p-3 backdrop-blur-sm sm:p-6">
+    <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden bg-background/60 p-3 backdrop-blur-sm sm:p-6">
       <div className="absolute inset-0" onClick={() => handleClose()} aria-hidden="true" />
 
-      <div className="relative z-10 flex h-full items-center justify-center">
-        <div className="flex h-full min-h-0 w-full max-w-5xl flex-col gap-3 sm:h-[88dvh]">
+      <div className="relative z-10 flex h-full items-center justify-center overflow-x-hidden">
+        <div className="flex h-full min-h-0 w-full max-w-[calc(100vw-1.5rem)] flex-col gap-3 sm:h-[88dvh] sm:max-w-5xl">
           <AlertComponent alert={feedback} onClose={() => setFeedback(null)} />
 
           <FormComponent

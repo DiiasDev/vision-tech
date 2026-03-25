@@ -263,7 +263,7 @@ export function BudgetComponent() {
   }
 
   return (
-    <div className="relative space-y-6 overflow-hidden pb-4">
+    <div className="relative space-y-6 overflow-x-hidden pb-4">
       <FormBudget
         open={showBudgetForm || Boolean(editingBudget)}
         mode={editingBudget ? "edit" : "create"}

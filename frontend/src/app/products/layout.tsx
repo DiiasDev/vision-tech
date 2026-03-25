@@ -19,7 +19,7 @@ export default function ProductsLayout({
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-background via-background to-muted/35">
         <Header sidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)} />
 
-        <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <main data-app-scroll-container className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>
       </div>

@@ -1,0 +1,2 @@
+ALTER TABLE "ServiceOrder"
+ADD COLUMN "checklist" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

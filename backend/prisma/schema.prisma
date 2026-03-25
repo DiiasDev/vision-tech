@@ -469,6 +469,7 @@ model ServiceOrder {
   term        DateTime
   scheduling  DateTime?
   responsible String
+  checklist   String[]  @default([])
 
   progress Int @default(0)
 

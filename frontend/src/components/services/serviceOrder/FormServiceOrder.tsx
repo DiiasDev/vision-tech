@@ -11,8 +11,14 @@ import { Button } from "@/components/ui/button"
 import { getStoredHeaderUser } from "@/lib/auth-session"
 import { getBudgets } from "@/services/budgets.service"
 import { getClients, type ClientsListItem } from "@/services/clients.service"
+import {
+  createOrderService,
+  getServiceOrderCodes,
+  type CreateOrderServicePayload,
+} from "@/services/orderServices.service"
 import { getProducts, type ProductsListItem } from "@/services/products.service"
 import { getServices, type ApiServiceCatalogItem } from "@/services/services.service"
+import { formatCpfCnpj, formatPhoneBR } from "@/utils/Formatter"
 
 type FormServiceOrderProps = {
   open: boolean
@@ -97,7 +103,7 @@ function buildInitialProductBlocks() {
 function getNextServiceOrderCode(codes: string[]) {
   const maxCodeNumber = codes.reduce((max, current) => {
     const normalized = current.trim()
-    const standardMatch = /^OS-(\d{4})$/i.exec(normalized)
+    const standardMatch = /^OS-(\d+)$/i.exec(normalized)
     const rawNumber = standardMatch?.[1] ?? "0"
     const parsed = Number.parseInt(rawNumber, 10)
     if (!Number.isFinite(parsed)) return max
@@ -434,16 +440,6 @@ function buildFields(params: {
       required: true,
     },
     {
-      name: "checklist",
-      label: "Checklist inicial",
-      type: "textarea",
-      section: "Financeiro",
-      placeholder: "Um item por linha.",
-      defaultValue:
-        "Validar acesso e ambiente\nConfirmar janela de execucao\nRegistrar evidencias de conclusao",
-      colSpan: 2,
-    },
-    {
       name: "notes",
       label: "Observacoes internas",
       type: "textarea",
@@ -473,12 +469,12 @@ function applyClientSelection(values: Record<string, string>, client: ClientsLis
     ...values,
     clientName: client.name?.trim() || "",
     clientSegment: mapClientTypeToSegment(client.type),
-    clientDocument: client.document?.trim() || "",
+    clientDocument: formatCpfCnpj(client.document?.trim() || ""),
     clientCity: client.city?.trim() || "",
     clientState: client.state?.trim() || "",
     clientContactName: client.responsibleName?.trim() || "",
     clientEmail: client.responsibleEmail?.trim() || client.email?.trim() || "",
-    clientPhone: client.responsiblePhone?.trim() || client.telephone?.trim() || "",
+    clientPhone: formatPhoneBR(client.responsiblePhone?.trim() || client.telephone?.trim() || ""),
   }
 }
 
@@ -579,6 +575,41 @@ function applyProductIdsToValues(values: Record<string, string>, productIds: str
   return nextValues
 }
 
+function toDeadlineDateTimeOffset(value: string) {
+  if (typeof value !== "string" || !value.trim()) return `${toDateOnly(new Date())}T23:59:00-03:00`
+
+  const parsed = new Date(`${value}T23:59`)
+  if (Number.isNaN(parsed.getTime())) return `${toDateOnly(new Date())}T23:59:00-03:00`
+
+  const year = parsed.getFullYear()
+  const month = String(parsed.getMonth() + 1).padStart(2, "0")
+  const day = String(parsed.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}T23:59:00-03:00`
+}
+
+function mapOrderStatusToApi(status: string): CreateOrderServicePayload["status"] {
+  if (status === "in_progress") return "IN_PROGRESS"
+  if (status === "awaiting_parts") return "AWAITING_PARTS"
+  if (status === "completed") return "COMPLETED"
+  if (status === "cancelled") return "CANCELED"
+  return "SCHEDULED"
+}
+
+function mapOrderPriorityToApi(priority: string): CreateOrderServicePayload["priority"] {
+  if (priority === "low") return "LOW"
+  if (priority === "high") return "HIGH"
+  if (priority === "critical") return "CRITICAL"
+  return "MEDIUM"
+}
+
+function mapProgressByStatus(status: string) {
+  if (status === "completed") return 100
+  if (status === "awaiting_parts") return 65
+  if (status === "in_progress") return 40
+  if (status === "cancelled") return 0
+  return 10
+}
+
 export function FormServiceOrder({
   open,
   onClose,
@@ -593,10 +624,14 @@ export function FormServiceOrder({
   const [products, setProducts] = useState<ProductsListItem[]>([])
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [services, setServices] = useState<ApiServiceCatalogItem[]>([])
+  const [apiCodes, setApiCodes] = useState<string[]>([])
   const [productBlocks, setProductBlocks] = useState<ProductBlock[]>(() => buildInitialProductBlocks())
   const [formValues, setFormValues] = useState<Record<string, string>>({})
 
-  const nextCode = useMemo(() => getNextServiceOrderCode(existingCodes), [existingCodes])
+  const nextCode = useMemo(() => {
+    const mergedCodes = Array.from(new Set([...existingCodes, ...apiCodes]))
+    return getNextServiceOrderCode(mergedCodes)
+  }, [apiCodes, existingCodes])
   const responsibleDefault = useMemo(() => getStoredHeaderUser()?.fullName?.trim() || "Usuario logado", [])
   const fields = useMemo(
     () =>
@@ -654,14 +689,16 @@ export function FormServiceOrder({
 
     let isMounted = true
     setIsLoadingReferences(true)
+    const orderCodesPromise = getServiceOrderCodes().catch(() => ({ data: [] as string[] }))
 
-    void Promise.all([getClients(), getProducts(), getBudgets(), getServices()])
-      .then(([clientsResponse, productsResponse, budgetsResponse, servicesResponse]) => {
+    void Promise.all([getClients(), getProducts(), getBudgets(), getServices(), orderCodesPromise])
+      .then(([clientsResponse, productsResponse, budgetsResponse, servicesResponse, orderCodesResponse]) => {
         if (!isMounted) return
         setClients(clientsResponse.data)
         setProducts(productsResponse.data)
         setBudgets(budgetsResponse.data)
         setServices(servicesResponse.data)
+        setApiCodes(orderCodesResponse.data)
       })
       .catch((error) => {
         if (!isMounted) return
@@ -673,6 +710,7 @@ export function FormServiceOrder({
         setProducts([])
         setBudgets([])
         setServices([])
+        setApiCodes([])
       })
       .finally(() => {
         if (!isMounted) return
@@ -695,6 +733,7 @@ export function FormServiceOrder({
         return {}
       })
       setFeedback((prev) => (prev ? null : prev))
+      setApiCodes((prev) => (prev.length > 0 ? [] : prev))
       return
     }
 
@@ -706,6 +745,9 @@ export function FormServiceOrder({
       for (const [fieldName, defaultValue] of Object.entries(defaults)) {
         merged[fieldName] = prev[fieldName] ?? defaultValue
       }
+
+      // Codigo e sempre automatico, entao deve refletir o ultimo nextCode calculado.
+      merged.code = defaults.code
       return merged
     })
   }, [fields, open])
@@ -714,6 +756,42 @@ export function FormServiceOrder({
     if (!open) return
     setFormValues((prev) => applyProductsSelection(prev, products, productBlocks))
   }, [open, productBlocks, products])
+
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return
+
+    const previousBodyOverflow = document.body.style.overflow
+    const previousBodyPaddingRight = document.body.style.paddingRight
+    const previousHtmlOverflow = document.documentElement.style.overflow
+    const scrollContainer =
+      document.querySelector<HTMLElement>("[data-app-scroll-container]") ??
+      document.querySelector<HTMLElement>("main.overflow-y-auto")
+    const previousContainerOverflow = scrollContainer?.style.overflow ?? ""
+    const previousContainerOverflowX = scrollContainer?.style.overflowX ?? ""
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
+
+    document.body.style.overflow = "hidden"
+    document.documentElement.style.overflow = "hidden"
+    document.body.classList.add("modal-open")
+    if (scrollContainer) {
+      scrollContainer.style.overflow = "hidden"
+      scrollContainer.style.overflowX = "hidden"
+    }
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`
+    }
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      document.body.style.paddingRight = previousBodyPaddingRight
+      document.documentElement.style.overflow = previousHtmlOverflow
+      document.body.classList.remove("modal-open")
+      if (scrollContainer) {
+        scrollContainer.style.overflow = previousContainerOverflow
+        scrollContainer.style.overflowX = previousContainerOverflowX
+      }
+    }
+  }, [open])
 
   if (!open) return null
 
@@ -796,15 +874,22 @@ export function FormServiceOrder({
       const orderId = globalThis.crypto?.randomUUID?.() ?? `so-${Date.now()}`
       const timelineId = globalThis.crypto?.randomUUID?.() ?? `timeline-${Date.now()}`
       const laborId = globalThis.crypto?.randomUUID?.() ?? `labor-${Date.now()}`
+      const code = values.code?.trim()
+      if (!code) throw new Error("Codigo da OS e obrigatorio.")
+
+      const clientId = selectedClient?.id ?? values.clientId?.trim()
+      if (!clientId) throw new Error("Selecione um cliente para criar a OS.")
+
       const checklist = parseMultiline(values.checklist)
       const notes = parseMultiline(values.notes)
       const estimatedValue = Math.max(0, parseCurrencyNumber(values.estimatedValue, 0))
+      const safeEstimatedValue = Number(estimatedValue.toFixed(2))
       const serviceName = selectedService?.name?.trim() || values.serviceName?.trim() || "Servico tecnico"
       const responsibleName = values.responsible?.trim() || responsibleDefault
       const orderTitle =
         values.title?.trim() ||
         selectedBudget?.title?.trim() ||
-        `OS ${values.code.trim()} - ${serviceName}`
+        `OS ${code} - ${serviceName}`
       const orderDescription =
         values.description?.trim() ||
         selectedBudget?.scopeSummary?.trim() ||
@@ -815,6 +900,19 @@ export function FormServiceOrder({
       const serviceInternalCost = parseCurrencyNumber(selectedService?.internal_cost, 0)
       const hourlyCost =
         serviceInternalCost > 0 ? Number((serviceInternalCost / estimatedHours).toFixed(2)) : 140
+
+      const orderProductsPayload = selectedProducts.map((product) => {
+        const unitCost = Math.max(0, parseCurrencyNumber(product.cost ?? product.price, 0))
+        const quantity = 1
+        return {
+          product_id: product.id,
+          description: product.name,
+          quantity,
+          unit_cost: unitCost,
+          total_cost: Number((unitCost * quantity).toFixed(2)),
+          status: "planned",
+        }
+      })
 
       const partItems = selectedProducts.map((product, index) => ({
         id: globalThis.crypto?.randomUUID?.() ?? `part-${Date.now()}-${index}`,
@@ -830,16 +928,91 @@ export function FormServiceOrder({
         ? [selectedClient.city, selectedClient.state].filter(Boolean).join(" - ")
         : ""
 
+      const productsTotalCost = orderProductsPayload.reduce((acc, product) => acc + product.total_cost, 0)
+      const estimatedLaborCost = serviceInternalCost > 0 ? serviceInternalCost : hourlyCost * estimatedHours
+      const totalCost = Number((productsTotalCost + estimatedLaborCost).toFixed(2))
+      const marginValue = Number((safeEstimatedValue - totalCost).toFixed(2))
+      const marginPercent = safeEstimatedValue > 0 ? Number(((marginValue / safeEstimatedValue) * 100).toFixed(2)) : 0
+      const scheduleAt = toDateTimeOffset(values.scheduledAt)
+      const orderStatus = values.status?.trim() || "scheduled"
+      const timelineNotes = `Ordem ${code} cadastrada com status ${orderStatus}.${
+        selectedService ? ` Servico: ${selectedService.name}.` : ""
+      }`
+
+      const serviceCodeFallback = `SVC-${code.replace("OS-", "") || Date.now()}-01`
+      const serviceCatalogStatus =
+        typeof selectedService?.status === "string" && selectedService.status.trim()
+          ? selectedService.status.trim()
+          : "ACTIVE"
+
+      const orderServicesPayload = selectedService
+        ? [
+            {
+              service_catalog_id: selectedService.id,
+              code: selectedService.code?.trim() || serviceCodeFallback,
+              name: serviceName,
+              category: selectedService.category?.trim() || "Servico tecnico",
+              service_type: selectedService.service_type?.trim() || "tecnico",
+              billing_model: selectedService.billing_model?.trim() || "project",
+              billing_unit: selectedService.billing_unit?.trim() || "unidade",
+              estimated_duration: selectedService.estimated_duration?.trim() || `${estimatedHours}h`,
+              complexity_level: selectedService.complexity_level?.trim() || "media",
+              responsible: responsibleName,
+              catalog_status: serviceCatalogStatus,
+              is_completed: orderStatus === "completed",
+              completed_at: orderStatus === "completed" ? now.toISOString() : null,
+              sort_order: 1,
+            },
+          ]
+        : []
+
+      const budgetId = selectedBudget?.id ?? values.budgetId?.trim() ?? ""
+      const serviceId = selectedService?.id ?? values.serviceId?.trim() ?? ""
+
+      const payload: CreateOrderServicePayload = {
+        budget_id: budgetId || null,
+        client_id: clientId,
+        service_id: serviceId || null,
+        code,
+        title: orderTitle,
+        description: orderDescription,
+        status: mapOrderStatusToApi(orderStatus),
+        priority: mapOrderPriorityToApi(values.priority),
+        term: toDeadlineDateTimeOffset(values.deadlineDate),
+        scheduling: scheduleAt,
+        responsible: responsibleName,
+        checklist,
+        progress: mapProgressByStatus(orderStatus),
+        total_cost: totalCost,
+        total_value: safeEstimatedValue,
+        margin_value: marginValue,
+        margin_percent: marginPercent,
+        services: orderServicesPayload,
+        products: orderProductsPayload,
+        timeline: [
+          {
+            author_name: responsibleName,
+            event: "OS criada",
+            notes: timelineNotes,
+            event_at: now.toISOString(),
+          },
+        ],
+      }
+
+      const createResponse = await createOrderService(payload)
+      const persistedOrderId =
+        typeof createResponse.data?.id === "string" && createResponse.data.id.trim() ? createResponse.data.id : orderId
+
       const createdOrder: ServiceOrder = {
-        id: orderId,
-        code: values.code.trim(),
+        id: persistedOrderId,
+        code,
         title: orderTitle,
         description: orderDescription,
         status: values.status as ServiceOrder["status"],
         priority: values.priority as ServiceOrder["priority"],
         createdAt: nowDate,
         updatedAt: nowDate,
-        scheduledAt: toDateTimeOffset(values.scheduledAt),
+        scheduledAt: scheduleAt,
         deadlineDate: values.deadlineDate,
         concludedAt: values.status === "completed" ? nowDate : null,
         coordinator: responsibleName,
@@ -847,22 +1020,23 @@ export function FormServiceOrder({
         serviceName,
         sourceBudgetCode: selectedBudget?.code?.trim() || values.sourceBudgetCode?.trim() || null,
         executionAddress: values.executionAddress?.trim() || fallbackExecutionAddress,
-        estimatedValue,
+        estimatedValue: safeEstimatedValue,
         checklist,
         notes,
         client: {
-          id: selectedClient?.id ?? (globalThis.crypto?.randomUUID?.() ?? `cli-${Date.now()}`),
+          id: clientId,
           name: selectedClient?.name?.trim() || values.clientName.trim(),
           segment: values.clientSegment.trim() || fallbackClientSegment || "Nao informado",
-          document: selectedClient?.document?.trim() || values.clientDocument.trim(),
+          document: formatCpfCnpj(selectedClient?.document?.trim() || values.clientDocument.trim()),
           city: selectedClient?.city?.trim() || values.clientCity.trim(),
           state: selectedClient?.state?.trim() || values.clientState.trim().toUpperCase(),
           contactName: selectedClient?.responsibleName?.trim() || values.clientContactName.trim(),
           email: selectedClient?.responsibleEmail?.trim() || selectedClient?.email?.trim() || values.clientEmail.trim(),
-          phone:
+          phone: formatPhoneBR(
             selectedClient?.responsiblePhone?.trim() ||
-            selectedClient?.telephone?.trim() ||
-            values.clientPhone.trim(),
+              selectedClient?.telephone?.trim() ||
+              values.clientPhone.trim()
+          ),
         },
         laborItems: [
           {
@@ -879,20 +1053,22 @@ export function FormServiceOrder({
         timeline: [
           {
             id: timelineId,
-            at: toDateTimeOffset(values.scheduledAt),
+            at: scheduleAt,
             author: "Sistema",
             event: "OS criada",
-            notes: `Ordem ${values.code.trim()} cadastrada com status ${values.status}.${
-              selectedService ? ` Servico: ${selectedService.name}.` : ""
-            }`,
+            notes: timelineNotes,
           },
         ],
       }
 
       onCreated?.(createdOrder)
 
-      const successAlert = ComponentAlert.Success(`Ordem ${createdOrder.code} criada com sucesso.`)
+      const successMessage = createResponse.message?.trim()
+        ? createResponse.message
+        : `Ordem ${createdOrder.code} criada com sucesso.`
+      const successAlert = ComponentAlert.Success(successMessage)
       onFeedback?.(successAlert)
+      setApiCodes((prev) => (prev.includes(createdOrder.code) ? prev : [...prev, createdOrder.code]))
       handleClose(true)
     } catch (error) {
       const message = error instanceof Error ? error.message : "Nao foi possivel criar a ordem de servico."
@@ -905,11 +1081,11 @@ export function FormServiceOrder({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-background/60 p-3 backdrop-blur-sm sm:p-6">
+    <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden bg-background/60 p-3 backdrop-blur-sm sm:p-6">
       <div className="absolute inset-0" onClick={() => handleClose()} aria-hidden="true" />
 
-      <div className="relative z-10 flex min-h-full items-start justify-center py-1 sm:items-center sm:py-3">
-        <div className="flex h-[calc(100dvh-1.25rem)] w-full max-w-5xl flex-col gap-3 sm:h-[calc(100dvh-2rem)]">
+      <div className="relative z-10 flex min-h-full items-start justify-center overflow-x-hidden py-1 sm:items-center sm:py-3">
+        <div className="flex h-[calc(100dvh-1.25rem)] w-full max-w-[calc(100vw-1.5rem)] flex-col gap-3 sm:h-[calc(100dvh-2rem)] sm:max-w-5xl">
           <AlertComponent alert={feedback} onClose={() => setFeedback(null)} />
 
           <FormComponent

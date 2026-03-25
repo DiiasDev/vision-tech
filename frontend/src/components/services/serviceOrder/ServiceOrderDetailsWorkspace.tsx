@@ -147,32 +147,17 @@ export function ServiceOrderDetailsWorkspace({ ordersHref }: ServiceOrderDetails
           <p className="text-muted-foreground">{selectedOrder.description}</p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-2 rounded-xl border border-border/70 bg-background/65 p-3 text-sm">
-            <p className="font-semibold">Checklist</p>
-            {selectedOrder.checklist.length === 0 ? (
-              <p className="text-muted-foreground">Sem itens no checklist.</p>
-            ) : (
-              selectedOrder.checklist.map((item, index) => (
-                <p key={`${selectedOrder.id}-check-${index}`} className="text-muted-foreground">
-                  - {item}
-                </p>
-              ))
-            )}
-          </div>
-
-          <div className="space-y-2 rounded-xl border border-border/70 bg-background/65 p-3 text-sm">
-            <p className="font-semibold">Observacoes</p>
-            {selectedOrder.notes.length === 0 ? (
-              <p className="text-muted-foreground">Sem observacoes registradas.</p>
-            ) : (
-              selectedOrder.notes.map((item, index) => (
-                <p key={`${selectedOrder.id}-note-${index}`} className="text-muted-foreground">
-                  - {item}
-                </p>
-              ))
-            )}
-          </div>
+        <div className="space-y-2 rounded-xl border border-border/70 bg-background/65 p-3 text-sm">
+          <p className="font-semibold">Observacoes</p>
+          {selectedOrder.notes.length === 0 ? (
+            <p className="text-muted-foreground">Sem observacoes registradas.</p>
+          ) : (
+            selectedOrder.notes.map((item, index) => (
+              <p key={`${selectedOrder.id}-note-${index}`} className="text-muted-foreground">
+                - {item}
+              </p>
+            ))
+          )}
         </div>
       </section>
 

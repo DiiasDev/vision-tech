@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { AlertComponent, ComponentAlert, type ComponentAlertState } from "@/components/layout/AlertComponent"
 import { FormServiceOrder } from "@/components/services/serviceOrder/FormServiceOrder"
@@ -13,8 +13,9 @@ import {
   type ServiceOrderPriority,
   type ServiceOrderServiceItem,
   type ServiceOrderStatus,
-  serviceOrderMockData,
 } from "@/components/services/serviceOrder/service-order-mock-data"
+import { getServiceOrders, type ApiServiceOrder } from "@/services/orderServices.service"
+import { formatCpfCnpj, formatPhoneBR } from "@/utils/Formatter"
 
 type ServiceOrderStatusFilter = "all" | ServiceOrderStatus
 
@@ -138,8 +139,196 @@ function ensureOrderServiceItems(order: ServiceOrder): ServiceOrder {
   }
 }
 
+function parseNumberValue(value: string | number | null | undefined, fallback = 0) {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value !== "string") return fallback
+
+  const normalized = value.trim().replace(/\s/g, "").replace(",", ".")
+  if (!normalized) return fallback
+
+  const parsed = Number.parseFloat(normalized)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function toDateOnlyFromValue(value: string | null | undefined) {
+  if (!value) return formatDateOnly()
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return formatDateOnly()
+  return formatDateOnly(parsed)
+}
+
+function toDateTimeFromValue(value: string | null | undefined) {
+  if (!value) return formatDateTimeOffset(new Date())
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return formatDateTimeOffset(new Date())
+  return formatDateTimeOffset(parsed)
+}
+
+function mapStatusFromApi(status: ApiServiceOrder["status"]): ServiceOrderStatus {
+  if (status === "IN_PROGRESS") return "in_progress"
+  if (status === "AWAITING_PARTS") return "awaiting_parts"
+  if (status === "COMPLETED") return "completed"
+  if (status === "CANCELED") return "cancelled"
+  return "scheduled"
+}
+
+function mapPriorityFromApi(priority: ApiServiceOrder["priority"]): ServiceOrderPriority {
+  if (priority === "LOW") return "low"
+  if (priority === "HIGH") return "high"
+  if (priority === "CRITICAL") return "critical"
+  return "medium"
+}
+
+function mapClientSegment(clientType: "PF" | "PJ" | null | undefined) {
+  if (clientType === "PF") return "Pessoa Fisica"
+  if (clientType === "PJ") return "Pessoa Juridica"
+  return "Nao informado"
+}
+
+function mapPartStatusFromApi(status: string | null | undefined): "planned" | "reserved" | "used" {
+  const normalized = (status ?? "").trim().toLowerCase()
+  if (!normalized) return "planned"
+  if (normalized.includes("reserv")) return "reserved"
+  if (normalized.includes("used") || normalized.includes("utiliz")) return "used"
+  return "planned"
+}
+
+function mapServiceOrderFromApi(order: ApiServiceOrder): ServiceOrder {
+  const status = mapStatusFromApi(order.status)
+  const priority = mapPriorityFromApi(order.priority)
+  const serviceItems =
+    order.services?.map((item, index) => ({
+      id: item.id ?? `${order.id}-service-${index + 1}`,
+      code: item.code?.trim() || `SVC-${order.code.replace("OS-", "")}-${String(index + 1).padStart(2, "0")}`,
+      name: item.name?.trim() || "Servico tecnico",
+      category: item.category?.trim() || "Servico tecnico",
+      serviceType: item.serviceType?.trim() || "tecnico",
+      billingModel: item.billingModel?.trim() || "project",
+      billingUnit: item.billingUnit?.trim() || "unidade",
+      estimatedDuration: item.estimatedDuration?.trim() || "1h",
+      complexityLevel: item.complexityLevel?.trim() || "media",
+      responsible: item.responsible?.trim() || order.responsible?.trim() || "Nao informado",
+      catalogStatus: item.catalogStatus?.trim() || "ACTIVE",
+      checkStatus: item.isCompleted ? ("done" as const) : ("pending" as const),
+    })) ?? []
+
+  const partItems =
+    order.products?.map((item, index) => ({
+      id: item.id ?? `${order.id}-part-${index + 1}`,
+      sku: item.product?.code?.trim() || `ITEM-${String(index + 1).padStart(2, "0")}`,
+      description: item.description?.trim() || item.product?.name?.trim() || "Item sem descricao",
+      quantity: Number.isFinite(item.quantity) ? item.quantity : 1,
+      unitCost: parseNumberValue(item.unitCost, 0),
+      status: mapPartStatusFromApi(item.status),
+    })) ?? []
+
+  const timeline =
+    order.timeline?.map((item, index) => ({
+      id: item.id ?? `${order.id}-timeline-${index + 1}`,
+      at: toDateTimeFromValue(item.eventAt),
+      author: item.authorName?.trim() || order.createdBy?.name?.trim() || "Sistema",
+      event: item.event?.trim() || "Atualizacao",
+      notes: item.notes?.trim() || "",
+    })) ?? []
+
+  const fallbackTimeline =
+    timeline.length > 0
+      ? timeline
+      : [
+          {
+            id: `${order.id}-timeline-created`,
+            at: toDateTimeFromValue(order.createdAt),
+            author: order.createdBy?.name?.trim() || "Sistema",
+            event: "OS criada",
+            notes: "Ordem registrada no sistema.",
+          },
+        ]
+
+  const checklist = Array.isArray(order.checklist)
+    ? order.checklist.map((item) => item.trim()).filter((item) => item.length > 0)
+    : []
+
+  const notes = fallbackTimeline.map((item) => item.notes.trim()).filter((item) => item.length > 0)
+
+  const serviceName =
+    serviceItems[0]?.name?.trim() || order.service?.name?.trim() || order.title?.trim() || "Servico tecnico"
+  const responsibleName =
+    order.responsible?.trim() ||
+    order.responsibleUser?.name?.trim() ||
+    order.createdBy?.name?.trim() ||
+    "Nao informado"
+
+  const clientName = order.client?.name?.trim() || "Cliente nao informado"
+  const clientCity = order.client?.city?.trim() || ""
+  const clientState = order.client?.state?.trim() || ""
+  const locationLabel = [clientCity, clientState].filter((item) => item.length > 0).join("/")
+  const streetLabel = [order.client?.street?.trim(), order.client?.number?.trim()].filter(Boolean).join(", ")
+  const neighborhoodLabel = order.client?.neighborhood?.trim() || ""
+  const executionAddress = [streetLabel, neighborhoodLabel, locationLabel]
+    .map((value) => (value ?? "").trim())
+    .filter((value) => value.length > 0)
+    .join(" - ")
+
+  const partsTotal = partItems.reduce((acc, item) => acc + item.quantity * item.unitCost, 0)
+  const totalCost = parseNumberValue(order.totalCost, 0)
+  const estimatedLaborCost = Math.max(0, totalCost - partsTotal)
+  const laborItems =
+    estimatedLaborCost > 0
+      ? [
+          {
+            id: `${order.id}-labor-01`,
+            description: `Mao de obra - ${serviceName}`,
+            technician: responsibleName,
+            estimatedHours: 1,
+            workedHours: 1,
+            hourlyCost: Number(estimatedLaborCost.toFixed(2)),
+            status: status === "completed" ? ("done" as const) : ("pending" as const),
+          },
+        ]
+      : []
+
+  const fallbackCodeToken = order.id.replace(/\W/g, "").slice(-4).toUpperCase() || "0000"
+
+  return {
+    id: order.id,
+    code: order.code?.trim() || `OS-${fallbackCodeToken}`,
+    title: order.title?.trim() || `Ordem ${order.code?.trim() || order.id}`,
+    description: order.description?.trim() || "Sem descricao tecnica.",
+    status,
+    priority,
+    createdAt: toDateOnlyFromValue(order.createdAt),
+    updatedAt: toDateOnlyFromValue(order.updatedAt),
+    scheduledAt: toDateTimeFromValue(order.scheduling ?? order.createdAt),
+    deadlineDate: toDateOnlyFromValue(order.term),
+    concludedAt: status === "completed" ? toDateOnlyFromValue(order.updatedAt ?? order.term) : null,
+    coordinator: order.createdBy?.name?.trim() || responsibleName,
+    technician: responsibleName,
+    serviceName,
+    sourceBudgetCode: order.budget?.code?.trim() || null,
+    executionAddress: executionAddress || locationLabel || "Endereco nao informado",
+    estimatedValue: parseNumberValue(order.totalValue, 0),
+    checklist,
+    notes,
+    client: {
+      id: order.client?.id ?? order.clientId,
+      name: clientName,
+      segment: mapClientSegment(order.client?.type),
+      document: formatCpfCnpj(order.client?.document?.trim() || "-"),
+      city: clientCity || "-",
+      state: clientState || "-",
+      contactName: order.client?.responsibleName?.trim() || clientName,
+      email: order.client?.responsibleEmail?.trim() || order.client?.email?.trim() || "-",
+      phone: formatPhoneBR(order.client?.responsiblePhone?.trim() || order.client?.telephone?.trim() || "-"),
+    },
+    serviceItems,
+    laborItems,
+    partItems,
+    timeline: fallbackTimeline,
+  }
+}
+
 export function ServiceOrderWorkspace({ detailsBasePath = "/services/serviceOrder/id" }: ServiceOrderWorkspaceProps) {
-  const [orders, setOrders] = useState<ServiceOrder[]>(() => serviceOrderMockData.map(ensureOrderServiceItems))
+  const [orders, setOrders] = useState<ServiceOrder[]>([])
   const [searchValue, setSearchValue] = useState("")
   const [statusFilter, setStatusFilter] = useState<ServiceOrderStatusFilter>("all")
   const [priorityFilter, setPriorityFilter] = useState<ServiceOrderPriorityFilter>("all")
@@ -147,6 +336,27 @@ export function ServiceOrderWorkspace({ detailsBasePath = "/services/serviceOrde
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set())
   const [feedback, setFeedback] = useState<ComponentAlertState | null>(null)
   const [showServiceOrderForm, setShowServiceOrderForm] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+
+    void getServiceOrders()
+      .then((response) => {
+        if (!isMounted) return
+        const mappedOrders = response.data.map((item) => ensureOrderServiceItems(mapServiceOrderFromApi(item)))
+        setOrders(mappedOrders)
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        const message = error instanceof Error ? error.message : "Nao foi possivel carregar as ordens de servico."
+        setFeedback(ComponentAlert.Error(message))
+        setOrders([])
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const technicians = useMemo(() => {
     const uniqueTechnicians = new Set<string>()
@@ -276,18 +486,18 @@ export function ServiceOrderWorkspace({ detailsBasePath = "/services/serviceOrde
         ...item,
         id: `${item.id}-copy-${suffix}-${index}`,
         code: `SVC-${nextOrderCode.replace("OS-", "")}-${String(index + 1).padStart(2, "0")}`,
-        checkStatus: "pending",
+        checkStatus: "pending" as const,
       })),
       laborItems: normalizedOrder.laborItems.map((item, index) => ({
         ...item,
         id: `${item.id}-copy-${suffix}-${index}`,
         workedHours: 0,
-        status: "pending",
+        status: "pending" as const,
       })),
       partItems: normalizedOrder.partItems.map((item, index) => ({
         ...item,
         id: `${item.id}-copy-${suffix}-${index}`,
-        status: "planned",
+        status: "planned" as const,
       })),
       timeline: [
         {
@@ -315,7 +525,9 @@ export function ServiceOrderWorkspace({ detailsBasePath = "/services/serviceOrde
         const normalizedOrder = ensureOrderServiceItems(currentOrder)
         const updatedServiceItems =
           normalizedOrder.serviceItems?.map((item) =>
-            item.id === serviceItemId ? { ...item, checkStatus: checked ? "done" : "pending" } : item
+            item.id === serviceItemId
+              ? { ...item, checkStatus: checked ? ("done" as const) : ("pending" as const) }
+              : item
           ) ?? []
 
         const doneCount = updatedServiceItems.filter((item) => item.checkStatus === "done").length
@@ -377,7 +589,7 @@ export function ServiceOrderWorkspace({ detailsBasePath = "/services/serviceOrde
   }
 
   return (
-    <div className="relative space-y-6 overflow-hidden pb-4">
+    <div className="relative space-y-6 overflow-x-hidden pb-4">
       <FormServiceOrder
         open={showServiceOrderForm}
         onClose={() => setShowServiceOrderForm(false)}

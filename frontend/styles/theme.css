@@ -161,6 +161,10 @@
       linear-gradient(180deg, color-mix(in oklab, var(--background) 98%, white 2%), var(--background));
     background-attachment: fixed;
   }
+
+  body.modal-open [data-slot="table-container"] {
+    overflow-x: hidden !important;
+  }
 }
 
 @layer components {
