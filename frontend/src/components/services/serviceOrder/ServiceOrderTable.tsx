@@ -343,8 +343,14 @@ export function ServiceOrderTable({
         )
       }
       case "sourceBudget":
-        if (order.sourceBudgetCode && order.sourceBudgetId) {
-          const budgetHref = `/budget/id?budgetId=${order.sourceBudgetId}`
+        if (order.sourceBudgetCode) {
+          const budgetQuery = [
+            order.sourceBudgetId ? `budgetId=${encodeURIComponent(order.sourceBudgetId)}` : null,
+            `budgetCode=${encodeURIComponent(order.sourceBudgetCode)}`,
+          ]
+            .filter((item): item is string => Boolean(item))
+            .join("&")
+          const budgetHref = `/budget/id?${budgetQuery}`
 
           return (
             <TableCell key={`${order.id}-${field}`}>
@@ -353,7 +359,11 @@ export function ServiceOrderTable({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary underline-offset-2 hover:underline"
-                onClick={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  event.preventDefault()
+                  window.open(budgetHref, "_blank", "noopener,noreferrer")
+                }}
               >
                 {order.sourceBudgetCode}
               </Link>

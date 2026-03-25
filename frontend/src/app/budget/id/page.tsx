@@ -34,7 +34,8 @@ import { formatCurrencyBR } from "@/utils/Formatter"
 
 export default function BudgetDetailsPage() {
   const searchParams = useSearchParams()
-  const budgetId = searchParams.get("budgetId")
+  const budgetId = searchParams.get("budgetId")?.trim() ?? ""
+  const budgetCode = searchParams.get("budgetCode")?.trim() ?? ""
   const [budget, setBudget] = useState<Budget | null>(null)
   const [isLoadingBudget, setIsLoadingBudget] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -43,7 +44,7 @@ export default function BudgetDetailsPage() {
     let isMounted = true
 
     const loadBudget = async () => {
-      if (!budgetId?.trim()) {
+      if (!budgetId && !budgetCode) {
         if (!isMounted) return
         setBudget(null)
         setLoadError("Orcamento nao informado.")
@@ -58,7 +59,8 @@ export default function BudgetDetailsPage() {
         const response = await getBudgets()
         if (!isMounted) return
 
-        const selectedBudget = response.data.find((item) => item.id === budgetId) ?? null
+        const selectedBudget =
+          response.data.find((item) => (budgetId ? item.id === budgetId : item.code === budgetCode)) ?? null
         setBudget(selectedBudget)
         if (!selectedBudget) {
           setLoadError("Orcamento nao encontrado para o identificador informado.")
@@ -78,7 +80,7 @@ export default function BudgetDetailsPage() {
     return () => {
       isMounted = false
     }
-  }, [budgetId])
+  }, [budgetCode, budgetId])
 
   if (isLoadingBudget) {
     return (

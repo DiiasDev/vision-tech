@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { BudgetPriority, BudgetStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import {
+  OrderServiceService,
+  type orderServiceDto,
+} from '../services/orderService/orderServices.service';
 
 export type CreateBudgetItemDto = {
   productId?: string;
@@ -75,6 +79,10 @@ export type UpdateBudgetDto = Partial<
   owner?: string;
   validUntil?: string | Date;
   items?: CreateBudgetItemDto[];
+};
+
+export type BudgetToOrderDto = {
+  budgetId: string;
 };
 
 type AuthenticatedUser = {
@@ -170,12 +178,17 @@ export class BudgetService {
   createBudget(currentUser: AuthenticatedUser, body: CreateBudgetDto) {
     return this.newBudget(currentUser, body);
   }
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly orderServiceService: OrderServiceService,
+  ) {}
 
   private parseDecimal(
-    value: number | string | undefined | null,
+    value: Prisma.Decimal | number | string | undefined | null,
     fallback = 0,
   ) {
+    if (value instanceof Prisma.Decimal) return value.toNumber();
+
     if (typeof value === 'number' && Number.isFinite(value)) return value;
 
     if (typeof value === 'string') {
@@ -222,6 +235,18 @@ export class BudgetService {
       FROM "Budget"
       WHERE "organizationId" = ${organizationId}
         AND code ~ ${`^ORC-[0-9]{4}$`}
+    `;
+
+    const next = rows[0]?.next_number ?? 1;
+    return Number.isFinite(next) && next > 0 ? next : 1;
+  }
+
+  private async getNextServiceOrderCodeNumber(organizationId: string) {
+    const rows = await this.prisma.$queryRaw<Array<{ next_number: number }>>`
+      SELECT COALESCE(MAX(CAST(SPLIT_PART(code, '-', 2) AS INTEGER)), 0) + 1 AS next_number
+      FROM "ServiceOrder"
+      WHERE "organizationId" = ${organizationId}
+        AND code ~ ${`^OS-[0-9]{4}$`}
     `;
 
     const next = rows[0]?.next_number ?? 1;
@@ -996,11 +1021,209 @@ export class BudgetService {
     }
   }
 
-  async budgetToOrder(currentUser: AuthenticatedUser, dto: CreateBudgetDto){
-    try{
+  async budgetToOrder(currentUser: AuthenticatedUser, dto: BudgetToOrderDto) {
+    try {
+      const organizationId = currentUser.organizationId?.trim();
+      const budgetId = dto.budgetId?.trim();
 
-    }catch(error: any){
-      
+      if (!organizationId || !budgetId) {
+        return {
+          success: false,
+          message: 'Sessao invalida ou orcamento nao informado.',
+          data: null,
+        };
+      }
+
+      const budget = await this.prisma.budget.findFirst({
+        where: {
+          id: budgetId,
+          organizationId,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          code: true,
+          title: true,
+          scopeSummary: true,
+          owner: true,
+          validUntil: true,
+          clientId: true,
+          serviceId: true,
+          serviceCode: true,
+          serviceName: true,
+          serviceCategory: true,
+          serviceBillingModel: true,
+          serviceEstimatedDuration: true,
+          serviceStatus: true,
+          budgetTotalCostAmount: true,
+          budgetTotalAmount: true,
+          priority: true,
+          items: {
+            select: {
+              productId: true,
+              description: true,
+              quantity: true,
+              unitPrice: true,
+              internalCost: true,
+            },
+          },
+        },
+      });
+
+      if (!budget) {
+        return {
+          success: false,
+          message: 'Orcamento nao encontrado para esta organizacao.',
+          data: null,
+        };
+      }
+
+      const existingOrder = await this.prisma.serviceOrder.findFirst({
+        where: {
+          organizationId,
+          budgetId: budget.id,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          code: true,
+        },
+      });
+
+      if (existingOrder) {
+        return {
+          success: false,
+          message: `Este orcamento ja possui OS vinculada (${existingOrder.code}).`,
+          data: existingOrder,
+        };
+      }
+
+      const nextCodeNumber = await this.getNextServiceOrderCodeNumber(
+        organizationId,
+      );
+      const generatedOrderCode = `OS-${String(nextCodeNumber).padStart(4, '0')}`;
+      const responsible =
+        budget.owner?.trim() || 'Responsavel da OS';
+
+      const totalCost = this.parseDecimal(budget.budgetTotalCostAmount, 0);
+      const totalValue = this.parseDecimal(budget.budgetTotalAmount, 0);
+      const marginValue = Number((totalValue - totalCost).toFixed(2));
+      const resolvedMarginPercent =
+        totalValue > 0
+          ? Number(((marginValue / totalValue) * 100).toFixed(2))
+          : 0;
+
+      const servicesPayload: orderServiceDto['services'] =
+        budget.serviceId || budget.serviceName
+          ? [
+              {
+                service_catalog_id: budget.serviceId?.trim() || null,
+                code:
+                  budget.serviceCode?.trim() ||
+                  `SVC-${generatedOrderCode.replace('OS-', '')}-01`,
+                name: budget.serviceName?.trim() || 'Servico tecnico',
+                category: budget.serviceCategory?.trim() || 'Servico tecnico',
+                service_type: 'tecnico',
+                billing_model:
+                  budget.serviceBillingModel?.trim().toLowerCase() ||
+                  'project',
+                billing_unit: 'unidade',
+                estimated_duration:
+                  budget.serviceEstimatedDuration?.trim() || '1h',
+                complexity_level: 'media',
+                responsible,
+                catalog_status: budget.serviceStatus?.trim() || 'ACTIVE',
+                is_completed: false,
+                completed_at: null,
+                sort_order: 1,
+              },
+            ]
+          : [];
+
+      const productsPayload: orderServiceDto['products'] = budget.items.map(
+        (item) => {
+          const quantity = this.parsePositiveInt(item.quantity, 1);
+          const internalCost = this.parseDecimal(item.internalCost, Number.NaN);
+          const unitPrice = this.parseDecimal(item.unitPrice, 0);
+          const unitCost = Number(
+            Math.max(0, Number.isFinite(internalCost) ? internalCost : unitPrice).toFixed(2),
+          );
+          const lineTotalCost = Number((unitCost * quantity).toFixed(2));
+
+          return {
+            product_id: item.productId?.trim() || null,
+            description: item.description?.trim() || 'Item do orcamento',
+            quantity,
+            unit_cost: unitCost,
+            total_cost: lineTotalCost,
+            status: 'planned',
+          };
+        },
+      );
+
+      const orderPayload: orderServiceDto = {
+        budget_id: budget.id,
+        client_id: budget.clientId,
+        service_id: budget.serviceId?.trim() || null,
+        code: generatedOrderCode,
+        title: budget.title?.trim() || `OS gerada de ${budget.code}`,
+        description:
+          budget.scopeSummary?.trim() ||
+          `Ordem gerada a partir do orcamento ${budget.code}.`,
+        status: 'SCHEDULED',
+        priority: budget.priority as orderServiceDto['priority'],
+        term: budget.validUntil.toISOString(),
+        scheduling: null,
+        responsible,
+        checklist: [],
+        progress: 10,
+        total_cost: Number(totalCost.toFixed(2)),
+        total_value: Number(totalValue.toFixed(2)),
+        margin_value: marginValue,
+        margin_percent: Number(resolvedMarginPercent.toFixed(2)),
+        services: servicesPayload,
+        products: productsPayload,
+        timeline: [
+          {
+            author_user_id: currentUser.userId ?? currentUser.id ?? null,
+            author_name: responsible,
+            event: 'OS criada',
+            notes: `Gerada automaticamente a partir do orcamento ${budget.code}.`,
+            event_at: new Date().toISOString(),
+          },
+        ],
+      };
+
+      const orderResponse = await this.orderServiceService.createOrderService(
+        orderPayload,
+        {
+          userId: currentUser.userId ?? currentUser.id ?? '',
+          organizationId,
+        },
+      );
+
+      if (!orderResponse.success) {
+        return {
+          success: false,
+          message:
+            orderResponse.message ||
+            'Nao foi possivel gerar a OS a partir do orcamento.',
+          data: orderResponse.data ?? null,
+        };
+      }
+
+      return {
+        success: true,
+        message: `OS gerada com sucesso a partir do orcamento ${budget.code}.`,
+        data: orderResponse.data,
+      };
+    } catch (error: any) {
+      console.error('Erro ao gerar OS por orcamento: ', error);
+      return {
+        success: false,
+        message: 'Nao foi possivel gerar a OS a partir do orcamento.',
+        data: null,
+      };
     }
   }
 }

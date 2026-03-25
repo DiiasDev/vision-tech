@@ -86,7 +86,15 @@ export function ServiceOrderDetailsDialog({
   const remainingDays = daysUntilServiceOrderDeadline(order.deadlineDate)
   const serviceItems = order.serviceItems ?? []
   const completedServiceItems = serviceItems.filter((item) => item.checkStatus === "done").length
-  const sourceBudgetHref = order.sourceBudgetId ? `/budget/id?budgetId=${order.sourceBudgetId}` : null
+  const budgetQuery = order.sourceBudgetCode
+    ? [
+        order.sourceBudgetId ? `budgetId=${encodeURIComponent(order.sourceBudgetId)}` : null,
+        `budgetCode=${encodeURIComponent(order.sourceBudgetCode)}`,
+      ]
+        .filter((item): item is string => Boolean(item))
+        .join("&")
+    : ""
+  const sourceBudgetHref = budgetQuery ? `/budget/id?${budgetQuery}` : null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -156,6 +164,10 @@ export function ServiceOrderDetailsDialog({
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary underline-offset-2 hover:underline"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              window.open(sourceBudgetHref, "_blank", "noopener,noreferrer")
+                            }}
                           >
                             {order.sourceBudgetCode}
                           </Link>

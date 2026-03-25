@@ -1,17 +1,21 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { ArrowLeft, CircleAlert, Percent, UserRound, Wallet, Wrench } from "lucide-react"
 
 import {
+  type ServiceOrder,
+  type ServiceOrderPriority,
+  type ServiceOrderServiceItem,
+  type ServiceOrderStatus,
   calculateServiceOrderFinancials,
   calculateServiceOrderProgress,
   daysUntilServiceOrderDeadline,
   formatServiceOrderDate,
   formatServiceOrderDateLong,
   formatServiceOrderDateTime,
-  serviceOrderMockData,
   serviceOrderPriorityLabel,
   serviceOrderPriorityTone,
   serviceOrderStatusLabel,
@@ -21,10 +25,287 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { formatCurrencyBR } from "@/utils/Formatter"
+import { getServiceOrders, type ApiServiceOrder } from "@/services/orderServices.service"
+import { formatCpfCnpj, formatCurrencyBR, formatPhoneBR } from "@/utils/Formatter"
 
 type ServiceOrderDetailsWorkspaceProps = {
   ordersHref: string
+}
+
+function formatDateOnly(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function formatDateTimeOffset(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  const hours = String(date.getHours()).padStart(2, "0")
+  const minutes = String(date.getMinutes()).padStart(2, "0")
+  return `${year}-${month}-${day}T${hours}:${minutes}:00-03:00`
+}
+
+function complexityByPriority(priority: ServiceOrderPriority) {
+  if (priority === "critical") return "alta"
+  if (priority === "high") return "alta"
+  if (priority === "medium") return "media"
+  return "baixa"
+}
+
+function defaultDoneCountByStatus(status: ServiceOrderStatus) {
+  if (status === "completed") return 3
+  if (status === "awaiting_parts") return 2
+  if (status === "in_progress") return 1
+  return 0
+}
+
+function buildDefaultServiceItems(order: ServiceOrder): ServiceOrderServiceItem[] {
+  const doneCount = defaultDoneCountByStatus(order.status)
+  const complexity = complexityByPriority(order.priority)
+  const baseCode = order.code.replace("OS-", "")
+  const defaultCatalogStatus = order.status === "cancelled" ? "inactive" : "active"
+
+  const templates = [
+    {
+      suffix: "01",
+      name: `Diagnostico - ${order.serviceName}`,
+      serviceType: "diagnostico",
+      billingModel: "hourly",
+      billingUnit: "hora",
+      estimatedDuration: "2h",
+    },
+    {
+      suffix: "02",
+      name: `Execucao tecnica - ${order.serviceName}`,
+      serviceType: "implantacao",
+      billingModel: "project",
+      billingUnit: "projeto",
+      estimatedDuration: "4h",
+    },
+    {
+      suffix: "03",
+      name: `Validacao final - ${order.serviceName}`,
+      serviceType: "validacao",
+      billingModel: "hourly",
+      billingUnit: "hora",
+      estimatedDuration: "1h",
+    },
+  ] as const
+
+  return templates.map((template, index) => ({
+    id: `svc-${order.id}-${template.suffix}`,
+    code: `SVC-${baseCode}-${template.suffix}`,
+    name: template.name,
+    category: order.serviceName,
+    serviceType: template.serviceType,
+    billingModel: template.billingModel,
+    billingUnit: template.billingUnit,
+    estimatedDuration: template.estimatedDuration,
+    complexityLevel: complexity,
+    responsible: order.technician,
+    catalogStatus: defaultCatalogStatus,
+    checkStatus: index < doneCount ? "done" : "pending",
+  }))
+}
+
+function ensureOrderServiceItems(order: ServiceOrder): ServiceOrder {
+  if (order.serviceItems && order.serviceItems.length > 0) return order
+  return {
+    ...order,
+    serviceItems: buildDefaultServiceItems(order),
+  }
+}
+
+function parseNumberValue(value: string | number | null | undefined, fallback = 0) {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value !== "string") return fallback
+
+  const normalized = value.trim().replace(/\s/g, "").replace(",", ".")
+  if (!normalized) return fallback
+
+  const parsed = Number.parseFloat(normalized)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function toDateOnlyFromValue(value: string | null | undefined) {
+  if (!value) return formatDateOnly()
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return formatDateOnly()
+  return formatDateOnly(parsed)
+}
+
+function toDateTimeFromValue(value: string | null | undefined) {
+  if (!value) return formatDateTimeOffset(new Date())
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return formatDateTimeOffset(new Date())
+  return formatDateTimeOffset(parsed)
+}
+
+function mapStatusFromApi(status: ApiServiceOrder["status"]): ServiceOrderStatus {
+  if (status === "IN_PROGRESS") return "in_progress"
+  if (status === "AWAITING_PARTS") return "awaiting_parts"
+  if (status === "COMPLETED") return "completed"
+  if (status === "CANCELED") return "cancelled"
+  return "scheduled"
+}
+
+function mapPriorityFromApi(priority: ApiServiceOrder["priority"]): ServiceOrderPriority {
+  if (priority === "LOW") return "low"
+  if (priority === "HIGH") return "high"
+  if (priority === "CRITICAL") return "critical"
+  return "medium"
+}
+
+function mapClientSegment(clientType: "PF" | "PJ" | null | undefined) {
+  if (clientType === "PF") return "Pessoa Fisica"
+  if (clientType === "PJ") return "Pessoa Juridica"
+  return "Nao informado"
+}
+
+function mapPartStatusFromApi(status: string | null | undefined): "planned" | "reserved" | "used" {
+  const normalized = (status ?? "").trim().toLowerCase()
+  if (!normalized) return "planned"
+  if (normalized.includes("reserv")) return "reserved"
+  if (normalized.includes("used") || normalized.includes("utiliz")) return "used"
+  return "planned"
+}
+
+function mapServiceOrderFromApi(order: ApiServiceOrder): ServiceOrder {
+  const status = mapStatusFromApi(order.status)
+  const priority = mapPriorityFromApi(order.priority)
+  const serviceItems =
+    order.services?.map((item, index) => ({
+      id: item.id ?? `${order.id}-service-${index + 1}`,
+      code: item.code?.trim() || `SVC-${order.code.replace("OS-", "")}-${String(index + 1).padStart(2, "0")}`,
+      name: item.name?.trim() || "Servico tecnico",
+      category: item.category?.trim() || "Servico tecnico",
+      serviceType: item.serviceType?.trim() || "tecnico",
+      billingModel: item.billingModel?.trim() || "project",
+      billingUnit: item.billingUnit?.trim() || "unidade",
+      estimatedDuration: item.estimatedDuration?.trim() || "1h",
+      complexityLevel: item.complexityLevel?.trim() || "media",
+      responsible: item.responsible?.trim() || order.responsible?.trim() || "Nao informado",
+      catalogStatus: item.catalogStatus?.trim() || "ACTIVE",
+      checkStatus: item.isCompleted ? ("done" as const) : ("pending" as const),
+    })) ?? []
+
+  const partItems =
+    order.products?.map((item, index) => ({
+      id: item.id ?? `${order.id}-part-${index + 1}`,
+      sku: item.product?.code?.trim() || `ITEM-${String(index + 1).padStart(2, "0")}`,
+      description: item.description?.trim() || item.product?.name?.trim() || "Item sem descricao",
+      quantity: Number.isFinite(item.quantity) ? item.quantity : 1,
+      unitCost: parseNumberValue(item.unitCost, 0),
+      status: mapPartStatusFromApi(item.status),
+    })) ?? []
+
+  const timeline =
+    order.timeline?.map((item, index) => ({
+      id: item.id ?? `${order.id}-timeline-${index + 1}`,
+      at: toDateTimeFromValue(item.eventAt),
+      author: item.authorName?.trim() || order.createdBy?.name?.trim() || "Sistema",
+      event: item.event?.trim() || "Atualizacao",
+      notes: item.notes?.trim() || "",
+    })) ?? []
+
+  const fallbackTimeline =
+    timeline.length > 0
+      ? timeline
+      : [
+          {
+            id: `${order.id}-timeline-created`,
+            at: toDateTimeFromValue(order.createdAt),
+            author: order.createdBy?.name?.trim() || "Sistema",
+            event: "OS criada",
+            notes: "Ordem registrada no sistema.",
+          },
+        ]
+
+  const checklist = Array.isArray(order.checklist)
+    ? order.checklist.map((item) => item.trim()).filter((item) => item.length > 0)
+    : []
+
+  const notes = fallbackTimeline.map((item) => item.notes.trim()).filter((item) => item.length > 0)
+
+  const serviceName =
+    serviceItems[0]?.name?.trim() || order.service?.name?.trim() || order.title?.trim() || "Servico tecnico"
+  const responsibleName =
+    order.responsible?.trim() ||
+    order.responsibleUser?.name?.trim() ||
+    order.createdBy?.name?.trim() ||
+    "Nao informado"
+
+  const clientName = order.client?.name?.trim() || "Cliente nao informado"
+  const clientCity = order.client?.city?.trim() || ""
+  const clientState = order.client?.state?.trim() || ""
+  const locationLabel = [clientCity, clientState].filter((item) => item.length > 0).join("/")
+  const streetLabel = [order.client?.street?.trim(), order.client?.number?.trim()].filter(Boolean).join(", ")
+  const neighborhoodLabel = order.client?.neighborhood?.trim() || ""
+  const executionAddress = [streetLabel, neighborhoodLabel, locationLabel]
+    .map((value) => (value ?? "").trim())
+    .filter((value) => value.length > 0)
+    .join(" - ")
+
+  const partsTotal = partItems.reduce((acc, item) => acc + item.quantity * item.unitCost, 0)
+  const totalCost = parseNumberValue(order.totalCost, 0)
+  const estimatedLaborCost = Math.max(0, totalCost - partsTotal)
+  const laborItems =
+    estimatedLaborCost > 0
+      ? [
+          {
+            id: `${order.id}-labor-01`,
+            description: `Mao de obra - ${serviceName}`,
+            technician: responsibleName,
+            estimatedHours: 1,
+            workedHours: 1,
+            hourlyCost: Number(estimatedLaborCost.toFixed(2)),
+            status: status === "completed" ? ("done" as const) : ("pending" as const),
+          },
+        ]
+      : []
+
+  const fallbackCodeToken = order.id.replace(/\W/g, "").slice(-4).toUpperCase() || "0000"
+
+  return {
+    id: order.id,
+    code: order.code?.trim() || `OS-${fallbackCodeToken}`,
+    title: order.title?.trim() || `Ordem ${order.code?.trim() || order.id}`,
+    description: order.description?.trim() || "Sem descricao tecnica.",
+    status,
+    priority,
+    createdAt: toDateOnlyFromValue(order.createdAt),
+    updatedAt: toDateOnlyFromValue(order.updatedAt),
+    scheduledAt: toDateTimeFromValue(order.scheduling ?? order.createdAt),
+    deadlineDate: toDateOnlyFromValue(order.term),
+    concludedAt: status === "completed" ? toDateOnlyFromValue(order.updatedAt ?? order.term) : null,
+    coordinator: order.createdBy?.name?.trim() || responsibleName,
+    technician: responsibleName,
+    serviceName,
+    sourceBudgetId: order.budget?.id?.trim() || order.budgetId?.trim() || null,
+    sourceBudgetCode: order.budget?.code?.trim() || null,
+    executionAddress: executionAddress || locationLabel || "Endereco nao informado",
+    estimatedValue: parseNumberValue(order.totalValue, 0),
+    checklist,
+    notes,
+    client: {
+      id: order.client?.id ?? order.clientId,
+      name: clientName,
+      segment: mapClientSegment(order.client?.type),
+      document: formatCpfCnpj(order.client?.document?.trim() || "-"),
+      city: clientCity || "-",
+      state: clientState || "-",
+      contactName: order.client?.responsibleName?.trim() || clientName,
+      email: order.client?.responsibleEmail?.trim() || order.client?.email?.trim() || "-",
+      phone: formatPhoneBR(order.client?.responsiblePhone?.trim() || order.client?.telephone?.trim() || "-"),
+    },
+    serviceItems,
+    laborItems,
+    partItems,
+    timeline: fallbackTimeline,
+  }
 }
 
 function laborStatusLabel(status: "pending" | "done") {
@@ -40,12 +321,73 @@ function partStatusLabel(status: "planned" | "reserved" | "used") {
 export function ServiceOrderDetailsWorkspace({ ordersHref }: ServiceOrderDetailsWorkspaceProps) {
   const searchParams = useSearchParams()
   const serviceOrderId = searchParams.get("serviceOrderId")?.trim() ?? ""
-  const selectedOrder = serviceOrderId ? serviceOrderMockData.find((item) => item.id === serviceOrderId) ?? null : null
-  const loadError = serviceOrderId
-    ? selectedOrder
-      ? null
-      : "Ordem de servico nao encontrada para o identificador informado."
-    : "Ordem de servico nao informada."
+
+  const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    if (!serviceOrderId) {
+      setSelectedOrder(null)
+      setLoadError("Ordem de servico nao informada.")
+      return () => {
+        isMounted = false
+      }
+    }
+
+    const loadOrder = async () => {
+      try {
+        setIsLoading(true)
+        setLoadError(null)
+
+        const response = await getServiceOrders()
+        if (!isMounted) return
+
+        const mappedOrders = response.data.map((item) => ensureOrderServiceItems(mapServiceOrderFromApi(item)))
+        const foundOrder = mappedOrders.find((item) => item.id === serviceOrderId) ?? null
+
+        if (!foundOrder) {
+          setSelectedOrder(null)
+          setLoadError("Ordem de servico nao encontrada para o identificador informado.")
+          return
+        }
+
+        setSelectedOrder(foundOrder)
+      } catch (error) {
+        if (!isMounted) return
+        const message = error instanceof Error ? error.message : "Nao foi possivel carregar a ordem de servico."
+        setSelectedOrder(null)
+        setLoadError(message)
+      } finally {
+        if (isMounted) setIsLoading(false)
+      }
+    }
+
+    void loadOrder()
+
+    return () => {
+      isMounted = false
+    }
+  }, [serviceOrderId])
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 pb-6">
+        <article className="rounded-2xl border border-border/70 bg-card/80 p-4 text-foreground">
+          <p className="inline-flex items-center gap-2 text-sm font-semibold">Carregando ordem de servico...</p>
+        </article>
+
+        <Button asChild variant="outline">
+          <Link href={ordersHref}>
+            <ArrowLeft className="h-4 w-4" />
+            Voltar para ordens de servico
+          </Link>
+        </Button>
+      </div>
+    )
+  }
 
   if (!selectedOrder) {
     return (
@@ -70,7 +412,15 @@ export function ServiceOrderDetailsWorkspace({ ordersHref }: ServiceOrderDetails
   const financials = calculateServiceOrderFinancials(selectedOrder)
   const progress = calculateServiceOrderProgress(selectedOrder)
   const remainingDays = daysUntilServiceOrderDeadline(selectedOrder.deadlineDate)
-  const sourceBudgetHref = selectedOrder.sourceBudgetId ? `/budget/id?budgetId=${selectedOrder.sourceBudgetId}` : null
+  const budgetQuery = selectedOrder.sourceBudgetCode
+    ? [
+        selectedOrder.sourceBudgetId ? `budgetId=${encodeURIComponent(selectedOrder.sourceBudgetId)}` : null,
+        `budgetCode=${encodeURIComponent(selectedOrder.sourceBudgetCode)}`,
+      ]
+        .filter((item): item is string => Boolean(item))
+        .join("&")
+    : ""
+  const sourceBudgetHref = budgetQuery ? `/budget/id?${budgetQuery}` : null
 
   return (
     <div className="space-y-6 pb-6">
@@ -146,6 +496,10 @@ export function ServiceOrderDetailsWorkspace({ ordersHref }: ServiceOrderDetails
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary underline-offset-2 hover:underline"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    window.open(sourceBudgetHref, "_blank", "noopener,noreferrer")
+                  }}
                 >
                   {selectedOrder.sourceBudgetCode}
                 </Link>

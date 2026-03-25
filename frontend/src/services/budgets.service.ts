@@ -178,6 +178,21 @@ type DeleteBudgetResponse = {
   } | null
 }
 
+type BudgetToOrderPayload = {
+  budgetId: string
+}
+
+type BudgetToOrderData = {
+  id?: string
+  code?: string
+}
+
+type BudgetToOrderResponse = {
+  success?: boolean
+  message?: string | string[]
+  data?: BudgetToOrderData | null
+}
+
 function getApiMessage(payload: unknown, fallback: string) {
   if (!payload || typeof payload !== "object") return fallback
 
@@ -537,5 +552,48 @@ export async function deleteBudget(budgetId: string) {
     payload: budgetPayload,
     data: budgetPayload?.data ?? null,
     message: getApiMessage(responsePayload, "Orcamento excluido com sucesso."),
+  }
+}
+
+export async function budgetToOrder(payload: BudgetToOrderPayload) {
+  const accessToken = getAccessToken()
+  if (!accessToken) {
+    throw new Error("Sua sessao expirou. Faca login novamente para gerar a OS.")
+  }
+
+  const response = await fetch(`${API_URL}/budget/budget-to-order`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  })
+
+  let responsePayload: unknown = null
+  try {
+    responsePayload = await response.json()
+  } catch {
+    responsePayload = null
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthSession()
+      throw new Error("Sua sessao expirou. Faca login novamente para gerar a OS.")
+    }
+
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel gerar a OS."))
+  }
+
+  const orderPayload = responsePayload as BudgetToOrderResponse | null
+  if (orderPayload?.success === false) {
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel gerar a OS."))
+  }
+
+  return {
+    payload: orderPayload,
+    data: orderPayload?.data ?? null,
+    message: getApiMessage(responsePayload, "OS gerada com sucesso."),
   }
 }

@@ -6,11 +6,18 @@ import { cn } from "@/lib/utils"
 
 export type ComponentAlertType = "info" | "success" | "error" | "warning"
 
+export type ComponentAlertLink = {
+  label: string
+  href: string
+  newTab?: boolean
+}
+
 export type ComponentAlertState = {
   type: ComponentAlertType
   title: string
   message: string
   actionLabel: string
+  link?: ComponentAlertLink
 }
 
 const alertDefaultMessages: Record<ComponentAlertType, string> = {
@@ -129,7 +136,22 @@ export function AlertComponent({ alert, onClose, className }: AlertComponentProp
         <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", style.icon)} />
         <div className="min-w-0">
           <p className={cn("text-base font-semibold", style.title)}>{alert.title}</p>
-          <p className={cn("mt-0.5 text-sm break-words", style.message)}>{alert.message}</p>
+          <p className={cn("mt-0.5 text-sm break-words", style.message)}>
+            {alert.message}
+            {alert.link ? (
+              <>
+                {" "}
+                <a
+                  href={alert.link.href}
+                  target={alert.link.newTab ? "_blank" : undefined}
+                  rel={alert.link.newTab ? "noopener noreferrer" : undefined}
+                  className="font-semibold underline underline-offset-2 transition-opacity hover:opacity-80"
+                >
+                  {alert.link.label}
+                </a>
+              </>
+            ) : null}
+          </p>
         </div>
       </div>
 

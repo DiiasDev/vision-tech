@@ -11,7 +11,7 @@ import { type Budget, type BudgetStatus } from "@/components/budget/budget-mock-
 import { AlertComponent, ComponentAlert, type ComponentAlertState } from "@/components/layout/AlertComponent"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { createBudget, deleteBudget, getBudgets, updateBudget } from "@/services/budgets.service"
+import { budgetToOrder, createBudget, deleteBudget, getBudgets, updateBudget } from "@/services/budgets.service"
 import { sendBudgetToWhatsapp } from "@/services/budget-whatsapp.service"
 
 type BudgetStatusFilter = "all" | BudgetStatus
@@ -25,6 +25,16 @@ const STATUS_FILTERS: Array<{ value: BudgetStatusFilter; label: string }> = [
   { value: "rejected", label: "Perdido" },
   { value: "expired", label: "Expirado" },
 ]
+
+function buildServiceOrderDetailsHref(orderId: string) {
+  const detailsPath = `/dashboard/servicos/ordens/id?serviceOrderId=${encodeURIComponent(orderId)}`
+
+  if (typeof window === "undefined") {
+    return detailsPath
+  }
+
+  return new URL(detailsPath, window.location.origin).toString()
+}
 
 export function BudgetComponent() {
   const [budgets, setBudgets] = useState<Budget[]>([])
@@ -262,6 +272,32 @@ export function BudgetComponent() {
     }
   }
 
+  async function handleGenerateOrder(targetBudget: Budget) {
+    try {
+      setFeedback(ComponentAlert.Info(`Gerando OS a partir do orcamento ${targetBudget.code}...`))
+      const response = await budgetToOrder({ budgetId: targetBudget.id })
+      const orderCode = typeof response.data?.code === "string" ? response.data.code.trim() : ""
+      const orderId = typeof response.data?.id === "string" ? response.data.id.trim() : ""
+
+      if (orderCode && orderId) {
+        setFeedback({
+          ...ComponentAlert.Success(`OS gerada com sucesso a partir do orcamento ${targetBudget.code}. Codigo da OS:`),
+          link: {
+            label: orderCode,
+            href: buildServiceOrderDetailsHref(orderId),
+            newTab: true,
+          },
+        })
+        return
+      }
+
+      setFeedback(ComponentAlert.Success(response.message || `OS gerada com sucesso a partir do orcamento ${targetBudget.code}.`))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Nao foi possivel gerar a OS."
+      setFeedback(ComponentAlert.Error(message))
+    }
+  }
+
   return (
     <div className="relative space-y-6 overflow-x-hidden pb-4">
       <FormBudget
@@ -354,7 +390,7 @@ export function BudgetComponent() {
               void handleSendBudget(budget)
             }}
             onGenerateOrder={(budget) => {
-              setFeedback(ComponentAlert.Info(`Geração de OS para ${budget.code} em desenvolvimento.`))
+              void handleGenerateOrder(budget)
             }}
             onGenerateRequest={(budget) => {
               setFeedback(ComponentAlert.Info(`Geração de pedido para ${budget.code} em desenvolvimento.`))

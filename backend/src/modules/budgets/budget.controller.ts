@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import {
   BudgetService,
+  type BudgetToOrderDto,
   type CreateBudgetDto,
   type UpdateBudgetDto,
 } from './budget.service';
@@ -60,5 +61,13 @@ export class BudgetController {
     const currentUser = req.user as AuthenticatedUser;
 
     return await this.budgetService.deleteBudget(budgetId, currentUser);
+  }
+
+  @Post('budget-to-order')
+  @UseGuards(JwtAuthGuard)
+  async budgetToOrder(@Req() req: Request, @Body() body: BudgetToOrderDto) {
+    const currentUser = req.user as AuthenticatedUser;
+
+    return await this.budgetService.budgetToOrder(currentUser, body);
   }
 }
