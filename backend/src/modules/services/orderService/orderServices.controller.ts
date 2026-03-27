@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import {
   OrderServiceService,
   type orderServiceDto,
@@ -40,5 +49,21 @@ export class OrderServicesController {
     const currentUser = req.user as AuthenticatedUser;
 
     return await this.orderService.getOrderService(currentUser);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':serviceOrderId')
+  async updateOrderService(
+    @Req() req: Request,
+    @Param('serviceOrderId') serviceOrderId: string,
+    @Body() body: Partial<orderServiceDto>,
+  ) {
+    const currentUser = req.user as AuthenticatedUser;
+
+    return await this.orderService.updateOrderService(
+      serviceOrderId,
+      body,
+      currentUser,
+    );
   }
 }

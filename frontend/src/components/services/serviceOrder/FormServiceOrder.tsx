@@ -14,6 +14,7 @@ import { getClients, type ClientsListItem } from "@/services/clients.service"
 import {
   createOrderService,
   getServiceOrderCodes,
+  updateOrderService,
   type CreateOrderServicePayload,
 } from "@/services/orderServices.service"
 import { getProducts, type ProductsListItem } from "@/services/products.service"
@@ -24,7 +25,11 @@ type FormServiceOrderProps = {
   open: boolean
   onClose: () => void
   existingCodes: string[]
+  initialScheduledAt?: string
+  mode?: "create" | "edit"
+  orderToEdit?: ServiceOrder | null
   onCreated?: (order: ServiceOrder) => void
+  onUpdated?: (order: ServiceOrder) => void
   onFeedback?: (feedback: ComponentAlertState) => void
 }
 
@@ -46,6 +51,15 @@ function toDateTimeFieldValue(date: Date) {
   const hours = String(date.getHours()).padStart(2, "0")
   const minutes = String(date.getMinutes()).padStart(2, "0")
   return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+function parseDateTimeLocalValue(value: string | null | undefined) {
+  if (typeof value !== "string" || !value.trim()) return null
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+
+  return parsed
 }
 
 function toDateTimeOffset(value: string) {
@@ -120,23 +134,129 @@ function mapClientTypeToSegment(type: ClientsListItem["type"] | undefined) {
   return "Nao informado"
 }
 
+function mapOrderClientSegmentToType(segment: string | null | undefined): ClientsListItem["type"] {
+  const normalizedSegment = normalizeLookupText(segment)
+  if (normalizedSegment.includes("fisic")) return "PF"
+  if (normalizedSegment.includes("jurid")) return "PJ"
+  return "PJ"
+}
+
+function buildFallbackClientFromOrder(order: ServiceOrder): ClientsListItem {
+  const nowIso = new Date().toISOString()
+  const fallbackClientId = order.client.id?.trim() || `order-client-${order.id}`
+
+  return {
+    id: fallbackClientId,
+    code: "CLI-LEGADO",
+    type: mapOrderClientSegmentToType(order.client.segment),
+    name: order.client.name?.trim() || "Cliente da OS",
+    document: order.client.document?.trim() || "",
+    status: "ACTIVE",
+    lastContact: null,
+    email: order.client.email?.trim() || null,
+    telephone: order.client.phone?.trim() || null,
+    responsibleName: order.client.contactName?.trim() || null,
+    responsibleEmail: order.client.email?.trim() || null,
+    responsiblePhone: order.client.phone?.trim() || null,
+    city: order.client.city?.trim() || null,
+    state: order.client.state?.trim() || null,
+    street: null,
+    number: null,
+    neighborhood: null,
+    zipCode: null,
+    responsibleUserId: null,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  }
+}
+
+function normalizeLookupText(value: string | null | undefined) {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+}
+
+function toDateFieldValue(value: string | null | undefined) {
+  if (!value || !value.trim()) return ""
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ""
+  return toDateOnly(parsed)
+}
+
+function toDateTimeLocalValue(value: string | null | undefined) {
+  if (!value || !value.trim()) return ""
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ""
+  return toDateTimeFieldValue(parsed)
+}
+
+function findMatchingClient(clients: ClientsListItem[], order: ServiceOrder) {
+  const orderClientId = order.client.id?.trim()
+  const orderClientName = normalizeLookupText(order.client.name)
+
+  return (
+    clients.find((client) => client.id === orderClientId) ??
+    clients.find((client) => normalizeLookupText(client.name) === orderClientName) ??
+    clients.find((client) => normalizeLookupText(client.name).includes(orderClientName)) ??
+    null
+  )
+}
+
+function findMatchingService(services: ApiServiceCatalogItem[], order: ServiceOrder) {
+  const serviceName = normalizeLookupText(order.serviceName)
+  const serviceCode = normalizeLookupText(order.serviceItems?.[0]?.code ?? "")
+
+  return (
+    services.find((service) => normalizeLookupText(service.code) === serviceCode) ??
+    services.find((service) => normalizeLookupText(service.name) === serviceName) ??
+    services.find((service) => normalizeLookupText(service.name).includes(serviceName)) ??
+    null
+  )
+}
+
+function findMatchingProductId(
+  products: ProductsListItem[],
+  item: ServiceOrder["partItems"][number]
+) {
+  const itemSku = normalizeLookupText(item.sku)
+  const itemDescription = normalizeLookupText(item.description)
+
+  const matchedBySku = products.find((product) => normalizeLookupText(product.code) === itemSku)
+  if (matchedBySku) return matchedBySku.id
+
+  const matchedByName = products.find((product) => normalizeLookupText(product.name) === itemDescription)
+  if (matchedByName) return matchedByName.id
+
+  const matchedByDescription = products.find((product) => normalizeLookupText(product.description) === itemDescription)
+  if (matchedByDescription) return matchedByDescription.id
+
+  return ""
+}
+
 function buildFields(params: {
   nextCode: string
   responsibleDefault: string
+  initialScheduledAt?: string
   clients: ClientsListItem[]
   budgets: Budget[]
   services: ApiServiceCatalogItem[]
   products: ProductsListItem[]
   productBlocks: ProductBlock[]
 }): GenericField[] {
-  const { nextCode, responsibleDefault, clients, budgets, services, products, productBlocks } = params
+  const { nextCode, responsibleDefault, initialScheduledAt, clients, budgets, services, products, productBlocks } = params
 
   const now = new Date()
-  const scheduledDate = new Date(now)
-  scheduledDate.setDate(scheduledDate.getDate() + 1)
-  scheduledDate.setHours(9, 0, 0, 0)
+  const prefilledScheduledDate = parseDateTimeLocalValue(initialScheduledAt)
+  const scheduledDate = prefilledScheduledDate ? new Date(prefilledScheduledDate) : new Date(now)
+  if (!prefilledScheduledDate) {
+    scheduledDate.setDate(scheduledDate.getDate() + 1)
+    scheduledDate.setHours(9, 0, 0, 0)
+  }
 
-  const deadlineDate = new Date(now)
+  const deadlineDate = new Date(scheduledDate)
   deadlineDate.setDate(deadlineDate.getDate() + 5)
   deadlineDate.setHours(12, 0, 0, 0)
 
@@ -563,6 +683,62 @@ function applyProductIdsToValues(values: Record<string, string>, productIds: str
   return nextValues
 }
 
+function buildEditInitialValues(params: {
+  defaults: Record<string, string>
+  order: ServiceOrder
+  clients: ClientsListItem[]
+  services: ApiServiceCatalogItem[]
+  products: ProductsListItem[]
+  productBlocks: ProductBlock[]
+  responsibleDefault: string
+}) {
+  const { defaults, order, clients, services, products, productBlocks, responsibleDefault } = params
+  const nextValues = { ...defaults }
+
+  const matchedClient = findMatchingClient(clients, order)
+  const matchedService = findMatchingService(services, order)
+  const productIds = order.partItems.map((item) => findMatchingProductId(products, item)).filter((id) => id.length > 0)
+
+  nextValues.code = order.code?.trim() || defaults.code
+  nextValues.budgetId = order.sourceBudgetId?.trim() || ""
+  nextValues.title = order.title?.trim() || ""
+  nextValues.description = order.description?.trim() || ""
+  nextValues.serviceId = matchedService?.id ?? ""
+  nextValues.serviceName = matchedService?.name?.trim() || order.serviceName?.trim() || ""
+  nextValues.status = order.status
+  nextValues.priority = order.priority
+  nextValues.scheduledAt = toDateTimeLocalValue(order.scheduledAt) || defaults.scheduledAt
+  nextValues.deadlineDate = toDateFieldValue(order.deadlineDate) || defaults.deadlineDate
+  nextValues.responsible = order.technician?.trim() || responsibleDefault
+  nextValues.executionAddress = order.executionAddress?.trim() || ""
+  nextValues.estimatedValue = String(Number.isFinite(order.estimatedValue) ? order.estimatedValue : 0)
+  nextValues.notes = order.notes.join("\n")
+  nextValues.clientId = matchedClient?.id ?? order.client.id?.trim() ?? ""
+  nextValues.clientName = matchedClient?.name?.trim() || order.client.name?.trim() || ""
+  nextValues.clientSegment =
+    mapClientTypeToSegment(matchedClient?.type) || order.client.segment?.trim() || ""
+  nextValues.clientDocument = formatCpfCnpj(matchedClient?.document?.trim() || order.client.document?.trim() || "")
+  nextValues.clientCity = matchedClient?.city?.trim() || order.client.city?.trim() || ""
+  nextValues.clientState = matchedClient?.state?.trim() || order.client.state?.trim() || ""
+  nextValues.clientContactName =
+    matchedClient?.responsibleName?.trim() || order.client.contactName?.trim() || ""
+  nextValues.clientEmail =
+    matchedClient?.responsibleEmail?.trim() ||
+    matchedClient?.email?.trim() ||
+    order.client.email?.trim() ||
+    ""
+  nextValues.clientPhone = formatPhoneBR(
+    matchedClient?.responsiblePhone?.trim() ||
+      matchedClient?.telephone?.trim() ||
+      order.client.phone?.trim() ||
+      ""
+  )
+
+  const blocksCount = Math.max(1, productBlocks.length)
+  const valuesWithProducts = applyProductIdsToValues(nextValues, productIds, blocksCount)
+  return applyProductsSelection(valuesWithProducts, products, productBlocks)
+}
+
 function toDeadlineDateTimeOffset(value: string) {
   if (typeof value !== "string" || !value.trim()) return `${toDateOnly(new Date())}T23:59:00-03:00`
 
@@ -602,9 +778,14 @@ export function FormServiceOrder({
   open,
   onClose,
   existingCodes,
+  initialScheduledAt,
+  mode = "create",
+  orderToEdit = null,
   onCreated,
+  onUpdated,
   onFeedback,
 }: FormServiceOrderProps) {
+  const isEditMode = mode === "edit" && Boolean(orderToEdit)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingReferences, setIsLoadingReferences] = useState(false)
   const [feedback, setFeedback] = useState<ComponentAlertState | null>(null)
@@ -615,24 +796,28 @@ export function FormServiceOrder({
   const [apiCodes, setApiCodes] = useState<string[]>([])
   const [productBlocks, setProductBlocks] = useState<ProductBlock[]>(() => buildInitialProductBlocks())
   const [formValues, setFormValues] = useState<Record<string, string>>({})
+  const [isFormInitialized, setIsFormInitialized] = useState(false)
+  const [hasLoadedReferences, setHasLoadedReferences] = useState(false)
 
   const nextCode = useMemo(() => {
+    if (isEditMode && orderToEdit?.code) return orderToEdit.code
     const mergedCodes = Array.from(new Set([...existingCodes, ...apiCodes]))
     return getNextServiceOrderCode(mergedCodes)
-  }, [apiCodes, existingCodes])
+  }, [apiCodes, existingCodes, isEditMode, orderToEdit?.code])
   const responsibleDefault = useMemo(() => getStoredHeaderUser()?.fullName?.trim() || "Usuario logado", [])
   const fields = useMemo(
     () =>
       buildFields({
         nextCode,
         responsibleDefault,
+        initialScheduledAt,
         clients,
         budgets,
         services,
         products,
         productBlocks,
       }),
-    [budgets, clients, nextCode, productBlocks, products, responsibleDefault, services]
+    [budgets, clients, initialScheduledAt, nextCode, productBlocks, products, responsibleDefault, services]
   )
 
   const orderSteps = useMemo<GenericFormStep[]>(
@@ -664,12 +849,12 @@ export function FormServiceOrder({
       {
         key: "financeiro",
         title: "Financeiro",
-        description: "Revise valor previsto e apontamentos iniciais para criar a OS.",
+        description: "Revise valor previsto e apontamentos iniciais da ordem de servico.",
         sections: ["Financeiro"],
-        submitLabel: "Criar ordem",
+        submitLabel: isEditMode ? "Salvar alteracoes" : "Criar ordem",
       },
     ],
-    []
+    [isEditMode]
   )
 
   useEffect(() => {
@@ -677,12 +862,21 @@ export function FormServiceOrder({
 
     let isMounted = true
     setIsLoadingReferences(true)
+    setHasLoadedReferences(false)
     const orderCodesPromise = getServiceOrderCodes().catch(() => ({ data: [] as string[] }))
 
     void Promise.all([getClients(), getProducts(), getBudgets(), getServices(), orderCodesPromise])
       .then(([clientsResponse, productsResponse, budgetsResponse, servicesResponse, orderCodesResponse]) => {
         if (!isMounted) return
-        setClients(clientsResponse.data)
+        const fetchedClients = Array.isArray(clientsResponse.data) ? clientsResponse.data : []
+        const orderClientId = orderToEdit?.client.id?.trim() ?? ""
+        const hasOrderClientInList = fetchedClients.some((client) => client.id === orderClientId)
+        const normalizedClients =
+          isEditMode && orderToEdit && orderClientId && !hasOrderClientInList
+            ? [buildFallbackClientFromOrder(orderToEdit), ...fetchedClients]
+            : fetchedClients
+
+        setClients(normalizedClients)
         setProducts(productsResponse.data)
         setBudgets(budgetsResponse.data)
         setServices(servicesResponse.data)
@@ -703,47 +897,91 @@ export function FormServiceOrder({
       .finally(() => {
         if (!isMounted) return
         setIsLoadingReferences(false)
+        setHasLoadedReferences(true)
       })
 
     return () => {
       isMounted = false
     }
-  }, [onFeedback, open])
+  }, [isEditMode, onFeedback, open, orderToEdit])
 
   useEffect(() => {
     if (!open) {
-      setProductBlocks((prev) => {
-        if (prev.length === 1) return prev
-        return buildInitialProductBlocks()
-      })
+      setProductBlocks(buildInitialProductBlocks())
       setFormValues((prev) => {
         if (Object.keys(prev).length === 0) return prev
         return {}
       })
       setFeedback((prev) => (prev ? null : prev))
       setApiCodes((prev) => (prev.length > 0 ? [] : prev))
+      setIsFormInitialized(false)
+      setHasLoadedReferences(false)
+      return
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open || !isEditMode || !orderToEdit || isFormInitialized) return
+
+    const blocksCount = Math.max(1, orderToEdit.partItems.length)
+    setProductBlocks(Array.from({ length: blocksCount }, (_, index) => createProductBlock(index + 1)))
+  }, [isEditMode, isFormInitialized, open, orderToEdit])
+
+  useEffect(() => {
+    if (!open || isFormInitialized) return
+
+    const defaults = buildInitialValues(fields)
+
+    if (isEditMode && orderToEdit) {
+      if (isLoadingReferences || !hasLoadedReferences) return
+
+      const initialEditValues = buildEditInitialValues({
+        defaults,
+        order: orderToEdit,
+        clients,
+        services,
+        products,
+        productBlocks,
+        responsibleDefault,
+      })
+      setFormValues(initialEditValues)
+      setIsFormInitialized(true)
       return
     }
 
-    const defaults = buildInitialValues(fields)
-    setFormValues((prev) => {
-      if (Object.keys(prev).length === 0) return defaults
-
-      const merged: Record<string, string> = {}
-      for (const [fieldName, defaultValue] of Object.entries(defaults)) {
-        merged[fieldName] = prev[fieldName] ?? defaultValue
-      }
-
-      // Codigo e sempre automatico, entao deve refletir o ultimo nextCode calculado.
-      merged.code = defaults.code
-      return merged
-    })
-  }, [fields, open])
+    setFormValues(defaults)
+    setIsFormInitialized(true)
+  }, [
+    clients,
+    fields,
+    hasLoadedReferences,
+    isLoadingReferences,
+    isEditMode,
+    isFormInitialized,
+    open,
+    orderToEdit,
+    productBlocks,
+    products,
+    responsibleDefault,
+    services,
+  ])
 
   useEffect(() => {
-    if (!open) return
+    if (!open || !isFormInitialized) return
     setFormValues((prev) => applyProductsSelection(prev, products, productBlocks))
-  }, [open, productBlocks, products])
+  }, [isFormInitialized, open, productBlocks, products])
+
+  useEffect(() => {
+    if (!open || !isFormInitialized || isEditMode) return
+
+    setFormValues((prev) => {
+      if (prev.code === nextCode) return prev
+      return {
+        ...prev,
+        code: nextCode,
+      }
+    })
+  }, [isEditMode, isFormInitialized, nextCode, open])
 
   useEffect(() => {
     if (!open || typeof window === "undefined") return
@@ -923,7 +1161,9 @@ export function FormServiceOrder({
       const marginPercent = safeEstimatedValue > 0 ? Number(((marginValue / safeEstimatedValue) * 100).toFixed(2)) : 0
       const scheduleAt = toDateTimeOffset(values.scheduledAt)
       const orderStatus = values.status?.trim() || "scheduled"
-      const timelineNotes = `Ordem ${code} cadastrada com status ${orderStatus}.${
+      const timelineAction = isEditMode ? "atualizada" : "cadastrada"
+      const timelineEvent = isEditMode ? "OS atualizada" : "OS criada"
+      const timelineNotes = `Ordem ${code} ${timelineAction} com status ${orderStatus}.${
         selectedService ? ` Servico: ${selectedService.name}.` : ""
       }`
 
@@ -980,87 +1220,167 @@ export function FormServiceOrder({
         timeline: [
           {
             author_name: responsibleName,
-            event: "OS criada",
+            event: timelineEvent,
             notes: timelineNotes,
             event_at: now.toISOString(),
           },
         ],
       }
 
-      const createResponse = await createOrderService(payload)
-      const persistedOrderId =
-        typeof createResponse.data?.id === "string" && createResponse.data.id.trim() ? createResponse.data.id : orderId
+      if (isEditMode && orderToEdit) {
+        const updateResponse = await updateOrderService(orderToEdit.id, payload)
 
-      const createdOrder: ServiceOrder = {
-        id: persistedOrderId,
-        code,
-        title: orderTitle,
-        description: orderDescription,
-        status: values.status as ServiceOrder["status"],
-        priority: values.priority as ServiceOrder["priority"],
-        createdAt: nowDate,
-        updatedAt: nowDate,
-        scheduledAt: scheduleAt,
-        deadlineDate: values.deadlineDate,
-        concludedAt: values.status === "completed" ? nowDate : null,
-        coordinator: responsibleName,
-        technician: responsibleName,
-        serviceName,
-        sourceBudgetId: selectedBudget?.id?.trim() || null,
-        sourceBudgetCode: selectedBudget?.code?.trim() || null,
-        executionAddress: values.executionAddress?.trim() || fallbackExecutionAddress,
-        estimatedValue: safeEstimatedValue,
-        checklist,
-        notes,
-        client: {
-          id: clientId,
-          name: selectedClient?.name?.trim() || values.clientName.trim(),
-          segment: values.clientSegment.trim() || fallbackClientSegment || "Nao informado",
-          document: formatCpfCnpj(selectedClient?.document?.trim() || values.clientDocument.trim()),
-          city: selectedClient?.city?.trim() || values.clientCity.trim(),
-          state: selectedClient?.state?.trim() || values.clientState.trim().toUpperCase(),
-          contactName: selectedClient?.responsibleName?.trim() || values.clientContactName.trim(),
-          email: selectedClient?.responsibleEmail?.trim() || selectedClient?.email?.trim() || values.clientEmail.trim(),
-          phone: formatPhoneBR(
-            selectedClient?.responsiblePhone?.trim() ||
-              selectedClient?.telephone?.trim() ||
-              values.clientPhone.trim()
-          ),
-        },
-        laborItems: [
-          {
-            id: laborId,
-            description: `Execucao tecnica - ${serviceName}`,
-            technician: responsibleName,
-            estimatedHours,
-            workedHours: 0,
-            hourlyCost,
-            status: "pending",
+        const updatedOrder: ServiceOrder = {
+          ...orderToEdit,
+          code,
+          title: orderTitle,
+          description: orderDescription,
+          status: values.status as ServiceOrder["status"],
+          priority: values.priority as ServiceOrder["priority"],
+          updatedAt: nowDate,
+          scheduledAt: scheduleAt,
+          deadlineDate: values.deadlineDate,
+          concludedAt: values.status === "completed" ? nowDate : null,
+          technician: responsibleName,
+          serviceName,
+          sourceBudgetId: selectedBudget?.id?.trim() || null,
+          sourceBudgetCode: selectedBudget?.code?.trim() || null,
+          executionAddress: values.executionAddress?.trim() || fallbackExecutionAddress,
+          estimatedValue: safeEstimatedValue,
+          checklist,
+          notes,
+          client: {
+            id: clientId,
+            name: selectedClient?.name?.trim() || values.clientName.trim(),
+            segment: values.clientSegment.trim() || fallbackClientSegment || "Nao informado",
+            document: formatCpfCnpj(selectedClient?.document?.trim() || values.clientDocument.trim()),
+            city: selectedClient?.city?.trim() || values.clientCity.trim(),
+            state: selectedClient?.state?.trim() || values.clientState.trim().toUpperCase(),
+            contactName: selectedClient?.responsibleName?.trim() || values.clientContactName.trim(),
+            email:
+              selectedClient?.responsibleEmail?.trim() ||
+              selectedClient?.email?.trim() ||
+              values.clientEmail.trim(),
+            phone: formatPhoneBR(
+              selectedClient?.responsiblePhone?.trim() ||
+                selectedClient?.telephone?.trim() ||
+                values.clientPhone.trim()
+            ),
           },
-        ],
-        partItems,
-        timeline: [
-          {
-            id: timelineId,
-            at: scheduleAt,
-            author: "Sistema",
-            event: "OS criada",
-            notes: timelineNotes,
+          laborItems: [
+            {
+              id: orderToEdit.laborItems[0]?.id || laborId,
+              description: `Execucao tecnica - ${serviceName}`,
+              technician: responsibleName,
+              estimatedHours,
+              workedHours: orderToEdit.laborItems[0]?.workedHours ?? 0,
+              hourlyCost,
+              status: values.status === "completed" ? "done" : "pending",
+            },
+          ],
+          partItems,
+          timeline: [
+            ...orderToEdit.timeline,
+            {
+              id: timelineId,
+              at: scheduleAt,
+              author: "Sistema",
+              event: timelineEvent,
+              notes: timelineNotes,
+            },
+          ],
+        }
+
+        onUpdated?.(updatedOrder)
+
+        const successMessage = updateResponse.message?.trim()
+          ? updateResponse.message
+          : `Ordem ${updatedOrder.code} atualizada com sucesso.`
+        const successAlert = ComponentAlert.Success(successMessage)
+        onFeedback?.(successAlert)
+        handleClose(true)
+      } else {
+        const createResponse = await createOrderService(payload)
+        const persistedOrderId =
+          typeof createResponse.data?.id === "string" && createResponse.data.id.trim() ? createResponse.data.id : orderId
+
+        const createdOrder: ServiceOrder = {
+          id: persistedOrderId,
+          code,
+          title: orderTitle,
+          description: orderDescription,
+          status: values.status as ServiceOrder["status"],
+          priority: values.priority as ServiceOrder["priority"],
+          createdAt: nowDate,
+          updatedAt: nowDate,
+          scheduledAt: scheduleAt,
+          deadlineDate: values.deadlineDate,
+          concludedAt: values.status === "completed" ? nowDate : null,
+          coordinator: responsibleName,
+          technician: responsibleName,
+          serviceName,
+          sourceBudgetId: selectedBudget?.id?.trim() || null,
+          sourceBudgetCode: selectedBudget?.code?.trim() || null,
+          executionAddress: values.executionAddress?.trim() || fallbackExecutionAddress,
+          estimatedValue: safeEstimatedValue,
+          checklist,
+          notes,
+          client: {
+            id: clientId,
+            name: selectedClient?.name?.trim() || values.clientName.trim(),
+            segment: values.clientSegment.trim() || fallbackClientSegment || "Nao informado",
+            document: formatCpfCnpj(selectedClient?.document?.trim() || values.clientDocument.trim()),
+            city: selectedClient?.city?.trim() || values.clientCity.trim(),
+            state: selectedClient?.state?.trim() || values.clientState.trim().toUpperCase(),
+            contactName: selectedClient?.responsibleName?.trim() || values.clientContactName.trim(),
+            email:
+              selectedClient?.responsibleEmail?.trim() ||
+              selectedClient?.email?.trim() ||
+              values.clientEmail.trim(),
+            phone: formatPhoneBR(
+              selectedClient?.responsiblePhone?.trim() ||
+                selectedClient?.telephone?.trim() ||
+                values.clientPhone.trim()
+            ),
           },
-        ],
+          laborItems: [
+            {
+              id: laborId,
+              description: `Execucao tecnica - ${serviceName}`,
+              technician: responsibleName,
+              estimatedHours,
+              workedHours: 0,
+              hourlyCost,
+              status: "pending",
+            },
+          ],
+          partItems,
+          timeline: [
+            {
+              id: timelineId,
+              at: scheduleAt,
+              author: "Sistema",
+              event: timelineEvent,
+              notes: timelineNotes,
+            },
+          ],
+        }
+
+        onCreated?.(createdOrder)
+
+        const successMessage = createResponse.message?.trim()
+          ? createResponse.message
+          : `Ordem ${createdOrder.code} criada com sucesso.`
+        const successAlert = ComponentAlert.Success(successMessage)
+        onFeedback?.(successAlert)
+        setApiCodes((prev) => (prev.includes(createdOrder.code) ? prev : [...prev, createdOrder.code]))
+        handleClose(true)
       }
-
-      onCreated?.(createdOrder)
-
-      const successMessage = createResponse.message?.trim()
-        ? createResponse.message
-        : `Ordem ${createdOrder.code} criada com sucesso.`
-      const successAlert = ComponentAlert.Success(successMessage)
-      onFeedback?.(successAlert)
-      setApiCodes((prev) => (prev.includes(createdOrder.code) ? prev : [...prev, createdOrder.code]))
-      handleClose(true)
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Nao foi possivel criar a ordem de servico."
+      const fallbackMessage = isEditMode
+        ? "Nao foi possivel atualizar a ordem de servico."
+        : "Nao foi possivel criar a ordem de servico."
+      const message = error instanceof Error ? error.message : fallbackMessage
       const errorAlert = ComponentAlert.Error(message)
       setFeedback(errorAlert)
       onFeedback?.(errorAlert)
@@ -1078,8 +1398,12 @@ export function FormServiceOrder({
           <AlertComponent alert={feedback} onClose={() => setFeedback(null)} />
 
           <FormComponent
-            title="Cadastrar ordem de servico"
-            description="Preencha os dados por etapas para concluir a criacao da ordem de servico."
+            title={isEditMode ? "Editar ordem de servico" : "Cadastrar ordem de servico"}
+            description={
+              isEditMode
+                ? "Atualize os campos da ordem de servico e salve as alteracoes."
+                : "Preencha os dados por etapas para concluir a criacao da ordem de servico."
+            }
             fields={fields}
             steps={orderSteps}
             renderStepHeaderActions={({ step }) =>
@@ -1107,7 +1431,7 @@ export function FormServiceOrder({
             }
             values={formValues}
             onValuesChange={handleValuesChange}
-            submitLabel={isLoadingReferences ? "Carregando dados..." : "Criar ordem"}
+            submitLabel={isLoadingReferences ? "Carregando dados..." : isEditMode ? "Salvar alteracoes" : "Criar ordem"}
             cancelLabel="Fechar"
             scrollable
             className="h-full min-h-0 flex-1"

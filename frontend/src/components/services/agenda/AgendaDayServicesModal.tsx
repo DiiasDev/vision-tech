@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { ChevronDown, Clock3, HardDrive, MapPin, ShieldCheck, Wrench, X } from "lucide-react"
+import { ChevronDown, Clock3, MapPin, Plus, ShieldCheck, Wrench, X } from "lucide-react"
 
 import {
   agendaPriorityMeta,
@@ -20,6 +20,7 @@ type AgendaDayServicesModalProps = {
   selectedDateLabel: string
   services: AgendaService[]
   techniciansById: Map<string, AgendaTechnician>
+  onAddService?: () => void
 }
 
 type ChecklistStage = {
@@ -28,12 +29,22 @@ type ChecklistStage = {
   itemIndexes: number[]
 }
 
+function formatServiceOrderLabel(serviceId: string) {
+  const normalized = serviceId.trim()
+  if (!normalized) return "OS"
+
+  const upperNormalized = normalized.toUpperCase()
+  if (upperNormalized.startsWith("OS-") || upperNormalized.startsWith("OS ")) return normalized
+  return `OS ${normalized}`
+}
+
 export function AgendaDayServicesModal({
   open,
   onClose,
   selectedDateLabel,
   services,
   techniciansById,
+  onAddService,
 }: AgendaDayServicesModalProps) {
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
   const [checklistStateByService, setChecklistStateByService] = useState<Record<string, boolean[]>>({})
@@ -203,8 +214,17 @@ export function AgendaDayServicesModal({
 
         <div className="max-h-[calc(88vh-118px)] overflow-y-auto p-4 md:p-6">
           {services.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 p-4 text-sm text-muted-foreground">
-              Sem visitas para este dia no filtro atual. Escolha outro dia no calendario ou ajuste os filtros.
+            <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 p-4">
+              <p className="text-sm text-muted-foreground">
+                Sem ordens de servico para este dia no filtro atual. Escolha outro dia no calendario ou ajuste os
+                filtros.
+              </p>
+              {onAddService ? (
+                <Button type="button" className="mt-3" onClick={onAddService}>
+                  <Plus className="h-4 w-4" />
+                  Adicionar servico
+                </Button>
+              ) : null}
             </div>
           ) : (
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,1fr)]">
@@ -280,10 +300,6 @@ export function AgendaDayServicesModal({
                           <MapPin className="h-3.5 w-3.5 shrink-0" />
                           {service.client} - {service.district}
                         </p>
-                        <p className="flex items-center gap-2">
-                          <HardDrive className="h-3.5 w-3.5 shrink-0" />
-                          {service.equipment}
-                        </p>
                       </div>
                     </button>
                   )
@@ -297,7 +313,7 @@ export function AgendaDayServicesModal({
                   <div className="mt-3 space-y-4">
                     <div>
                       <p className="text-lg font-semibold leading-tight text-foreground">{selectedService.title}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">OS {selectedService.id}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{formatServiceOrderLabel(selectedService.id)}</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
@@ -328,10 +344,6 @@ export function AgendaDayServicesModal({
                       <p className="flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
                         {selectedService.client} - {selectedService.address}, {selectedService.district}
-                      </p>
-                      <p className="flex items-center gap-2">
-                        <HardDrive className="h-4 w-4" />
-                        Equipamento: {selectedService.equipment}
                       </p>
                       <p className="flex items-center gap-2">
                         <ShieldCheck className="h-4 w-4" />

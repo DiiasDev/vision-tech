@@ -515,7 +515,7 @@ export function ServiceOrderTable({
                         </DropdownMenuItem>
 
                         <DropdownMenuItem asChild className="rounded-lg">
-                          <Link href={`${detailsBasePath}?serviceOrderId=${order.id}`}>
+                          <Link href={`${detailsBasePath}?serviceOrderId=${order.id}&mode=edit`}>
                             <Pencil className="h-4 w-4" />
                             Editar
                           </Link>

@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { ArrowLeft, CircleAlert, Percent, UserRound, Wallet, Wrench } from "lucide-react"
+import { ArrowLeft, CircleAlert, Pencil, Percent, UserRound, Wallet, Wrench } from "lucide-react"
 
+import { AlertComponent, type ComponentAlertState } from "@/components/layout/AlertComponent"
+import { FormServiceOrder } from "@/components/services/serviceOrder/FormServiceOrder"
 import {
   type ServiceOrder,
   type ServiceOrderPriority,
@@ -321,10 +323,19 @@ function partStatusLabel(status: "planned" | "reserved" | "used") {
 export function ServiceOrderDetailsWorkspace({ ordersHref }: ServiceOrderDetailsWorkspaceProps) {
   const searchParams = useSearchParams()
   const serviceOrderId = searchParams.get("serviceOrderId")?.trim() ?? ""
+  const requestedMode = searchParams.get("mode")?.trim().toLowerCase() ?? ""
 
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false)
+  const [feedback, setFeedback] = useState<ComponentAlertState | null>(null)
+  const [hasAutoOpenedEdit, setHasAutoOpenedEdit] = useState(false)
+
+  useEffect(() => {
+    setIsEditFormOpen(false)
+    setHasAutoOpenedEdit(false)
+  }, [serviceOrderId])
 
   useEffect(() => {
     let isMounted = true
@@ -371,6 +382,12 @@ export function ServiceOrderDetailsWorkspace({ ordersHref }: ServiceOrderDetails
       isMounted = false
     }
   }, [serviceOrderId])
+
+  useEffect(() => {
+    if (requestedMode !== "edit" || !selectedOrder || hasAutoOpenedEdit) return
+    setIsEditFormOpen(true)
+    setHasAutoOpenedEdit(true)
+  }, [hasAutoOpenedEdit, requestedMode, selectedOrder])
 
   if (isLoading) {
     return (
@@ -424,6 +441,21 @@ export function ServiceOrderDetailsWorkspace({ ordersHref }: ServiceOrderDetails
 
   return (
     <div className="space-y-6 pb-6">
+      <FormServiceOrder
+        open={isEditFormOpen}
+        onClose={() => setIsEditFormOpen(false)}
+        existingCodes={[selectedOrder.code]}
+        mode="edit"
+        orderToEdit={selectedOrder}
+        onUpdated={(updatedOrder) => {
+          setSelectedOrder(ensureOrderServiceItems(updatedOrder))
+          setIsEditFormOpen(false)
+        }}
+        onFeedback={setFeedback}
+      />
+
+      <AlertComponent alert={feedback} onClose={() => setFeedback(null)} />
+
       <section className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-accent/20 p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
@@ -449,6 +481,11 @@ export function ServiceOrderDetailsWorkspace({ ordersHref }: ServiceOrderDetails
               Cliente {selectedOrder.client.name} - Tecnico {selectedOrder.technician} - Prazo em{" "}
               {formatServiceOrderDateLong(selectedOrder.deadlineDate)}
             </p>
+
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsEditFormOpen(true)}>
+              <Pencil className="h-4 w-4" />
+              Editar OS
+            </Button>
           </div>
 
           <div className="grid min-w-[260px] gap-2 text-sm">

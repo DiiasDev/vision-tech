@@ -65,6 +65,12 @@ type CreateOrderServiceResponse = {
   } | null
 }
 
+type UpdateOrderServiceResponse = {
+  success?: boolean
+  message?: string | string[]
+  data?: ApiServiceOrder | null
+}
+
 type GetOrderServiceCodesResponse = {
   success?: boolean
   message?: string | string[]
@@ -178,6 +184,8 @@ export type ApiServiceOrder = {
     createdAt?: string
   }>
 }
+
+export type UpdateOrderServicePayload = Partial<CreateOrderServicePayload>
 
 type GetServiceOrdersResponse = {
   success?: boolean
@@ -321,5 +329,48 @@ export async function getServiceOrders() {
     payload,
     data: Array.isArray(payload?.data) ? payload.data : [],
     message: getApiMessage(responsePayload, "Ordens de servico carregadas com sucesso."),
+  }
+}
+
+export async function updateOrderService(orderId: string, payload: UpdateOrderServicePayload) {
+  const accessToken = getAccessToken()
+  if (!accessToken) {
+    throw new Error("Sua sessao expirou. Faca login novamente para atualizar a ordem de servico.")
+  }
+
+  const response = await fetch(`${API_URL}/service-order/${orderId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  })
+
+  let responsePayload: unknown = null
+  try {
+    responsePayload = await response.json()
+  } catch {
+    responsePayload = null
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthSession()
+      throw new Error("Sua sessao expirou. Faca login novamente para atualizar a ordem de servico.")
+    }
+
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel atualizar a ordem de servico."))
+  }
+
+  const orderPayload = responsePayload as UpdateOrderServiceResponse | null
+  if (orderPayload?.success === false) {
+    throw new Error(getApiMessage(responsePayload, "Nao foi possivel atualizar a ordem de servico."))
+  }
+
+  return {
+    payload: orderPayload,
+    data: orderPayload?.data ?? null,
+    message: getApiMessage(responsePayload, "Ordem de servico atualizada com sucesso."),
   }
 }
